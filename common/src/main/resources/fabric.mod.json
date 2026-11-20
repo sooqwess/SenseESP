@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "espmod",
+  "version": "${version}",
+  "name": "SenseESP",
+  "description": "Configurable 3D/2D entity & storage overlay, status HUD, health cards, and tracers with automatic singleplayer/OP compliance.",
+  "authors": [
+    "Sooqwess"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/senseesp",
+    "sources": "https://github.com/sooqwess/SenseESP",
+    "issues": "https://github.com/sooqwess/SenseESP/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/espmod/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.espmod.EspModClient"
+    ],
+    "modmenu": [
+      "net.espmod.config.ModMenuIntegration"
+    ]
+  },
+  "mixins": [
+    "espmod.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "${mc_dep}",
+    "java": ">=${java_ver}",
+    "fabric-api": "*",
+    "cloth-config": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

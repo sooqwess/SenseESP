@@ -1,0 +1,33 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'SenseESP'
+
+def allTargets = [
+    'v1_21_1',
+    'v1_21_3',
+    'v1_21_4',
+    'v1_21_5',
+    'v1_21_8',
+    'v1_21_9',
+    'v1_21_10',
+    'v1_21_11',
+    'v26_1',
+    'v26_2',
+    'v26_3'
+]
+
+def selectedTarget = providers.gradleProperty('target').orNull
+if (selectedTarget != null && !selectedTarget.isEmpty()) {
+    include(selectedTarget)
+} else {
+    include(allTargets as String[])
+}
