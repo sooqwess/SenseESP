@@ -1,20 +1,31 @@
 #!/usr/bin/env python3
 """
-Procedural pixel-art branding generator for SenseESP.
+Pixel-art branding generator for SenseESP.
 
-Draws a native 128x128 pixel-art composition (upscaled 4x with NEAREST to 512x512):
-- Hybrid tactical scanner frame combining beveled dark obsidian-slate pixel tiles,
-  crisp stepped white L-corners, emerald inner HUD hairline, outer telemetry dashes,
-  and corner reticle crosses.
-- Hand-crafted 22x16 All-Seeing Emerald Eye sprite (upscaled 3x = 66x48) with
-  layered jade/emerald iris shading, sleek vertical slit pupil, and crisp mint glint.
-- Crisp beveled gold ESP corner brackets with tight 1px dark jade rim, leaving
-  generous dark emerald space around the sprite.
+Matches the exact visual language and structural geometry of Forged Relics'
+approved original branding:
+- Banner (`assets/banner.png`): 1600x400 RGB
+  - Deep abyssal-emerald atmospheric canvas (`#060d0b`) with soft radial aura around
+    the right-side sprite and sparse crisp star/mote field (1px, 2px, and 4-point glints).
+  - Pure `#ffffff` stepped 5px frame (`[22..1577, 22..377]`) with 26x26 corner blocks,
+    outer paired `14x4` telemetry ticks, and 2px inner emerald hairline rails (`y=38..39`,
+    `y=360..361`, `x=48..1551`).
+  - Flat, crisp 5x7 pixel wordmark (`SENSE` in emerald `#5eead4`/`#34d399` or warm gold +
+    `ESP` in gold `#d9b36a`) at `14x` pixel scale (`98px` tall), zero fake gradients,
+    zero subtitle/pill clutter.
+  - Right-side large unframed All-Seeing Emerald Eye + gold ESP target brackets sprite
+    (`10x` crisp NEAREST pixel scale = `300x240`) with soft multi-pass silhouette rim/glow
+    and subtle warm gold dust motes.
+- Icon (`assets/icon.png` 512x512 & mod icon 128x128):
+  - Matching dark-abyssal canvas, pure `#ffffff` stepped frame, 4 gold corner crosses,
+    outer white telemetry ticks, thin inner emerald hairline, and centered glowing
+    Emerald Eye + gold ESP brackets sprite.
 """
 
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFilter
 import math
+import random
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_512 = ROOT / "assets" / "icon.png"
@@ -22,110 +33,40 @@ OUT_BANNER = ROOT / "assets" / "banner.png"
 OUT_128 = ROOT / "common" / "src" / "main" / "resources" / "assets" / "espmod" / "icon.png"
 
 
-def make_background(w: int, h: int) -> Image.Image:
-    im = Image.new("RGBA", (w, h))
-    p = im.load()
-    for y in range(h):
-        for x in range(w):
-            if x < 11 or x >= w - 11 or y < 11 or y >= h - 11:
-                bx, by = x // 2, y // 2
-                mod = ((bx * 5 + by * 3) % 4) - 1
-                p[x, y] = (10 + mod, 15 + mod * 2, 20 + mod * 2, 255)
-            else:
-                r = math.hypot((x - w * 0.50) / (w * 0.52), (y - h * 0.50) / (h * 0.52))
-                v = max(0, 6 - int(r * 6))
-                dither = 1 if ((x + y) % 2 == 0 and int(r * 12) % 2 == 1) else 0
-                vv = v + dither
-                p[x, y] = (5 + vv, 10 + vv * 4, 13 + vv * 3, 255)
-    return im
-
-
-def draw_scanner_frame(im: Image.Image) -> None:
-    d = ImageDraw.Draw(im)
-    W, H = im.size  # 128x128
-
-    # 1. Outer beveled tile rim + segmented slate plates
-    d.rectangle([0, 0, W - 1, H - 1], outline="#070c10")
-    d.line([(1, 1), (W - 2, 1)], fill="#243a40")
-    d.line([(1, 1), (1, H - 2)], fill="#243a40")
-    d.line([(1, H - 2), (W - 2, H - 2)], fill="#0b1418")
-    d.line([(W - 2, 1), (W - 2, H - 2)], fill="#0b1418")
-
-    for seg in [28, 44, 60, 76, 92]:
-        d.rectangle([seg, 2, seg + 7, 5], fill="#142428")
-        d.line([(seg, 2), (seg + 7, 2)], fill="#213c42")
-        d.rectangle([seg, H - 6, seg + 7, H - 3], fill="#111f23")
-        d.rectangle([2, seg, 5, seg + 7], fill="#142428")
-        d.rectangle([W - 6, seg, W - 3, seg + 7], fill="#111f23")
-
-    # 2. Outer corner emerald pixel crosses
-    for cx, cy in [(5, 5), (W - 7, 5), (5, H - 7), (W - 7, H - 7)]:
-        d.rectangle([cx - 2, cy, cx + 3, cy + 1], fill="#2ec47a")
-        d.rectangle([cx, cy - 2, cx + 1, cy + 3], fill="#2ec47a")
-        d.rectangle([cx, cy, cx + 1, cy + 1], fill="#7ef7b8")
-        d.point((cx - 2, cy + 1), fill="#145939")
-        d.point((cx + 3, cy + 1), fill="#145939")
-
-    # 3. Crisp white telemetry dashes along outer margin
-    WHITE = "#eafcf4"
-    WHITE_SHADOW = "#7ab8a0"
-    for a, b in [(16, 20), (23, 26), (W - 27, W - 24), (W - 21, W - 17)]:
-        d.rectangle([a, 5, b, 6], fill=WHITE)
-        d.line([(a, 7), (b, 7)], fill="#091316")
-        d.rectangle([a, H - 7, b, H - 6], fill=WHITE)
-        d.rectangle([5, a, 6, b], fill=WHITE)
-        d.rectangle([W - 7, a, W - 6, b], fill=WHITE)
-
-    # 4. Stepped white L-corner frame at inset 10..117
-    d.rectangle([9, 9, W - 10, H - 10], outline="#060e0d")
-    d.rectangle([10, 10, W - 11, 11], fill=WHITE)
-    d.rectangle([10, H - 12, W - 11, H - 11], fill=WHITE)
-    d.rectangle([10, 10, 11, H - 11], fill=WHITE)
-    d.rectangle([W - 12, 10, W - 11, H - 11], fill=WHITE)
-    d.line([(12, 12), (W - 13, 12)], fill=WHITE_SHADOW)
-    d.line([(12, 12), (12, H - 13)], fill=WHITE_SHADOW)
-
-    for cx, cy, sx, sy in [(10, 10, 1, 1), (W - 11, 10, -1, 1), (10, H - 11, 1, -1), (W - 11, H - 11, -1, -1)]:
-        for ox in range(6):
-            for oy in range(6):
-                if (ox < 4 and oy < 4) or (ox < 6 and oy < 2) or (ox < 2 and oy < 6):
-                    d.point((cx + ox * sx, cy + oy * sy), fill=WHITE)
-
-    # 5. Inner emerald hairline scanner frame at inset 15..112
-    EM_LINE = "#2fd483"
-    d.line([(19, 15), (W - 20, 15)], fill=EM_LINE)
-    d.line([(19, H - 16), (W - 20, H - 16)], fill=EM_LINE)
-    d.line([(15, 19), (15, H - 20)], fill=EM_LINE)
-    d.line([(W - 16, 19), (W - 16, H - 20)], fill=EM_LINE)
-
-    mid = W // 2
-    d.line([(mid - 4, 15), (mid + 3, 15)], fill="#9efcd0")
-    d.line([(mid - 1, 16), (mid, 16)], fill="#9efcd0")
-    d.line([(mid - 4, H - 16), (mid + 3, H - 16)], fill="#9efcd0")
-    d.line([(mid - 1, H - 17), (mid, H - 17)], fill="#9efcd0")
-    d.line([(15, mid - 4), (15, mid + 3)], fill="#9efcd0")
-    d.line([(16, mid - 1), (16, mid)], fill="#9efcd0")
-    d.line([(W - 16, mid - 4), (W - 16, mid + 3)], fill="#9efcd0")
-    d.line([(W - 17, mid - 1), (W - 17, mid)], fill="#9efcd0")
-
-    for x0, y0 in [(17, 17), (W - 18, 17), (17, H - 18), (W - 18, H - 18)]:
-        d.point((x0, y0), fill="#186b44")
+PIXEL_FONT = {
+    "A": ["01110", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "B": ["11110", "10001", "10001", "11110", "10001", "10001", "11110"],
+    "C": ["01110", "10001", "10000", "10000", "10000", "10001", "01110"],
+    "D": ["11110", "10001", "10001", "10001", "10001", "10001", "11110"],
+    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    "G": ["01110", "10001", "10000", "10111", "10001", "10001", "01110"],
+    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "I": ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    "N": ["10001", "11001", "10101", "10101", "10011", "10001", "10001"],
+    "O": ["01110", "10001", "10001", "10001", "10001", "10001", "01110"],
+    "P": ["11110", "10001", "10001", "11110", "10000", "10000", "10000"],
+    "R": ["11110", "10001", "10001", "11110", "10100", "10010", "10001"],
+    "S": ["01111", "10000", "10000", "01110", "00001", "00001", "11110"],
+    " ": ["00000"] * 7,
+}
 
 
 def build_eye_sprite_22x16() -> Image.Image:
     """Hand-crafted 22x16 pixel-art All-Seeing Emerald Eye with sleek 2px vertical slit pupil."""
     PAL = {
-        "o": (6, 15, 13, 255),      # Dark obsidian-jade outline
-        "k": (12, 42, 36, 255),     # Deepest teal corner shadow
-        "d": (18, 74, 62, 255),     # Outer dark sea-jade
-        "t": (28, 118, 92, 255),    # Rich jade mid-dark
-        "m": (44, 168, 114, 255),   # Vibrant emerald midtone
-        "g": (82, 222, 138, 255),   # Bright emerald-lime glow
-        "l": (176, 250, 184, 255),  # Luminous chartreuse-mint iris core
-        "s": (204, 253, 228, 255),  # Soft mint secondary highlight
-        "w": (246, 255, 250, 255),  # Pure mint-white specular highlight
-        "p": (5, 12, 11, 255),      # Abyssal vertical slit pupil
-        "q": (14, 48, 38, 255),     # Subtle pupil taper tip
+        "o": (5, 11, 10, 255),      # Crisp near-black obsidian-jade outline
+        "k": (11, 38, 33, 255),     # Deepest teal corner shadow
+        "d": (17, 70, 58, 255),     # Outer dark sea-jade
+        "t": (27, 114, 88, 255),    # Rich jade mid-dark
+        "m": (44, 168, 116, 255),   # Vibrant emerald midtone
+        "g": (86, 224, 148, 255),   # Bright emerald-mint glow
+        "l": (174, 248, 196, 255),  # Luminous mint iris core
+        "s": (212, 253, 232, 255),  # Soft mint secondary highlight
+        "w": (248, 255, 252, 255),  # Crisp specular glint
+        "p": (4, 9, 9, 255),        # Abyssal vertical slit pupil
+        "q": (14, 46, 38, 255),     # Subtle pupil taper tip
     }
 
     GRID = [
@@ -150,30 +91,25 @@ def build_eye_sprite_22x16() -> Image.Image:
     im = Image.new("RGBA", (22, 16), (0, 0, 0, 0))
     px = im.load()
     for y, row in enumerate(GRID):
-        assert len(row) == 22, f"Row {y} width {len(row)} != 22"
         for x, ch in enumerate(row):
             if ch != ".":
                 px[x, y] = PAL[ch]
     return im
 
 
-def build_esp_brackets_native() -> Image.Image:
-    """
-    Crisp beveled gold ESP target corner brackets on a 30x24 native pixel grid
-    (upscaled 3x = 90x72 on the 128x128 canvas).
-    """
+def build_esp_brackets_30x24() -> Image.Image:
+    """Crisp beveled gold ESP target corner brackets on a 30x24 native pixel grid."""
     W, H = 30, 24
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
 
-    OUT = (6, 15, 13, 255)
-    GOLD_SH = (176, 114, 24, 255)
-    GOLD_MD = (242, 188, 56, 255)
-    GOLD_HI = (255, 236, 138, 255)
-    GOLD_SP = (255, 252, 220, 255)
+    OUT = (5, 10, 10, 255)
+    GOLD_SH = (158, 108, 38, 255)
+    GOLD_MD = (217, 179, 106, 255)  # Matches Forged Relics #d9b36a warm gold!
+    GOLD_HI = (244, 216, 148, 255)
+    GOLD_SP = (255, 244, 204, 255)
 
     tl = Image.new("RGBA", (7, 7), (0, 0, 0, 0))
     tp = tl.load()
-    # Gold L: arm length 5 (1..5), thickness 2 (1..2)
     for y in range(1, 6):
         for x in range(1, 6):
             if y <= 2 or x <= 2:
@@ -208,242 +144,325 @@ def build_esp_brackets_native() -> Image.Image:
     return im
 
 
-def draw_sparkles(im: Image.Image) -> None:
+def build_combined_sprite_native() -> Image.Image:
+    """Combines the 22x16 Emerald Eye centered inside the 30x24 Gold ESP Brackets."""
+    canvas = Image.new("RGBA", (30, 24), (0, 0, 0, 0))
+    canvas.alpha_composite(build_esp_brackets_30x24(), (0, 0))
+    canvas.alpha_composite(build_eye_sprite_22x16(), (4, 4))
+    return canvas
+
+
+def composite_sprite_with_aura(
+    target: Image.Image,
+    sprite_native: Image.Image,
+    scale: int,
+    xy: tuple[int, int],
+) -> None:
+    """
+    Renders the crisp NEAREST-scaled sprite with the exact Forged Relics style
+    tight silhouette rim + soft atmospheric outer halo (never blurring the sprite itself).
+    """
+    pad = 4
+    padded = Image.new(
+        "RGBA",
+        (sprite_native.width + pad * 2, sprite_native.height + pad * 2),
+        (0, 0, 0, 0),
+    )
+    padded.alpha_composite(sprite_native, (pad, pad))
+    scaled = padded.resize(
+        (padded.width * scale, padded.height * scale),
+        Image.Resampling.NEAREST,
+    )
+    mask = scaled.getchannel("A")
+    px = xy[0] - pad * scale
+    py = xy[1] - pad * scale
+
+    # Soft outer emerald-jade bloom (like Forged Relics' #604b7e / #362959 sword halo)
+    halo_wide = Image.new("RGBA", scaled.size, (38, 128, 96, 255))
+    halo_wide_a = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(scale * 1.35))
+    halo_wide.putalpha(halo_wide_a.point(lambda a: min(255, int(a * 0.55))))
+    target.alpha_composite(halo_wide, (px, py))
+
+    # Tight silhouette rim (3px around crisp pixel edges)
+    rim_px = max(3, (scale // 3) | 1)
+    rim = Image.new("RGBA", scaled.size, (94, 214, 166, 255))
+    rim_a = mask.filter(ImageFilter.MaxFilter(rim_px * 2 + 1)).filter(ImageFilter.GaussianBlur(1.4))
+    rim.putalpha(rim_a.point(lambda a: min(255, int(a * 0.72))))
+    target.alpha_composite(rim, (px, py))
+
+    # Crisp unblurred pixel sprite on top
+    target.alpha_composite(scaled, (px, py))
+
+
+def draw_starfield(
+    draw: ImageDraw.ImageDraw,
+    w: int,
+    h: int,
+    seed: int,
+    exclude_boxes: list[tuple[int, int, int, int]],
+    star_count: int,
+    sparkle_coords: list[tuple[int, int, int]],
+) -> None:
+    rng = random.Random(seed)
+
+    def in_excluded(x: int, y: int) -> bool:
+        for x0, y0, x1, y1 in exclude_boxes:
+            if x0 <= x <= x1 and y0 <= y <= y1:
+                return True
+        return False
+
+    palette = [
+        (112, 146, 138),
+        (134, 168, 158),
+        (164, 198, 188),
+        (204, 232, 224),
+        (142, 136, 112),
+    ]
+    placed = 0
+    attempts = 0
+    while placed < star_count and attempts < star_count * 12:
+        attempts += 1
+        x = rng.randint(14, w - 15)
+        y = rng.randint(12, h - 13)
+        if in_excluded(x, y):
+            continue
+        col = palette[rng.randrange(len(palette))]
+        sz = 2 if rng.random() < 0.22 else 1
+        if sz == 1:
+            draw.point((x, y), fill=col)
+        else:
+            draw.rectangle([x, y, x + 1, y + 1], fill=col)
+        placed += 1
+
+    # Crisp 4-point cross sparkles (exact Forged Relics cross geometry)
+    for cx, cy, arm in sparkle_coords:
+        if in_excluded(cx, cy):
+            continue
+        ray_col = (122, 164, 154)
+        mid_col = (186, 226, 214)
+        draw.line([(cx - arm, cy), (cx + arm, cy)], fill=ray_col)
+        draw.line([(cx, cy - arm), (cx, cy + arm)], fill=ray_col)
+        draw.rectangle([cx - 1, cy - 1, cx + 1, cy + 1], fill=mid_col)
+        draw.point((cx, cy), fill=(255, 255, 255))
+
+
+def draw_flat_word(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    x0: int,
+    y0: int,
+    block: int,
+    color: tuple[int, int, int],
+) -> int:
+    """Draws crisp flat 5x7 pixel typography (zero outline, zero gradient) like Forged Relics."""
+    cx = x0
+    for idx, ch in enumerate(text.upper()):
+        rows = PIXEL_FONT[ch]
+        for r, row in enumerate(rows):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    px0 = cx + c * block
+                    py0 = y0 + r * block
+                    draw.rectangle([px0, py0, px0 + block - 1, py0 + block - 1], fill=color)
+        cx += 6 * block
+    return cx - block - x0
+
+
+def generate_banner() -> None:
+    W, H = 1600, 400
+    im = Image.new("RGBA", (W, H), (7, 13, 12, 255))
+    px = im.load()
+
+    # Subtle deep night-emerald atmospheric glow centered behind right-side sprite (x=1296, y=200)
+    # Left side is rich obsidian-pine (#070d0c) warming smoothly toward deep sea-jade (#10261f) around the sprite,
+    # matching Forged Relics' #090817 -> #221941 atmospheric depth.
+    sx_center, sy_center = 1296.0, 200.0
+    for y in range(H):
+        dy = (y - sy_center) / 205.0
+        dy2 = dy * dy
+        for x in range(W):
+            dx = (x - sx_center) / 370.0
+            dist = math.sqrt(dx * dx + dy2)
+            glow = max(0.0, 1.0 - dist)
+            glow2 = glow * glow
+            h_ramp = max(0.0, min(1.0, (x - 360.0) / 1060.0)) * (1.0 - 0.32 * abs(y - 200.0) / 200.0)
+            r = int(7 + 6 * h_ramp + 12 * glow2)
+            g = int(13 + 16 * h_ramp + 34 * glow2)
+            b = int(12 + 13 * h_ramp + 26 * glow2)
+            px[x, y] = (r, g, b, 255)
+
     d = ImageDraw.Draw(im)
 
-    def plus_sparkle(cx: int, cy: int, bright: bool = True) -> None:
-        c_arm = "#5ef0a8" if bright else "#2ea872"
-        c_core = "#eafff4" if bright else "#9efad0"
-        d.line([(cx - 2, cy), (cx + 2, cy)], fill=c_arm)
-        d.line([(cx, cy - 2), (cx, cy + 2)], fill=c_arm)
-        d.point((cx, cy), fill=c_core)
+    # Wordmark geometry: 14px block -> height = 7 * 14 = 98px (y=151..248)
+    # "SENSE" = 29 blocks = 406px; gap = 84px; "ESP" = 17 blocks = 238px -> total = 728px (x=176..904)
+    BLOCK = 14
+    word_y = (H - 7 * BLOCK) // 2  # 151
+    sense_x = 176
+    sense_w = 29 * BLOCK  # 406
+    esp_x = sense_x + sense_w + 84  # 666
+    esp_w = 17 * BLOCK  # 238
 
-    plus_sparkle(42, 22, True)
-    plus_sparkle(86, 22, False)
-    plus_sparkle(21, 64, True)
-    plus_sparkle(106, 64, True)
-    plus_sparkle(40, 105, False)
-    plus_sparkle(86, 105, True)
+    # Sprite geometry: 30x24 at 10x = 300x240, placed at x=1136..1436, y=80..320
+    SPRITE_SCALE = 10
+    sprite_x = 1136
+    sprite_y = (H - 24 * SPRITE_SCALE) // 2  # 80
 
-    motes = [
-        (26, 24, "#2d8a62"), (101, 24, "#4be39b"),
-        (24, 98, "#4be39b"), (102, 98, "#2d8a62"),
-        (63, 23, "#256e4e"), (64, 104, "#256e4e"),
+    # Sparse crisp stars + 4-point glints (avoiding wordmark, frame rails, and sprite core)
+    exclude = [
+        (sense_x - 24, word_y - 22, esp_x + esp_w + 28, word_y + 7 * BLOCK + 22),
+        (sprite_x - 18, sprite_y - 18, sprite_x + 300 + 18, sprite_y + 240 + 18),
+        (18, 18, 54, 54), (W - 55, 18, W - 19, 54),
+        (18, H - 55, 54, H - 19), (W - 55, H - 55, W - 19, H - 19),
     ]
-    for x, y, col in motes:
-        d.rectangle([x, y, x + 1, y + 1], fill=col)
+    sparkles = [
+        (72, 62, 5),
+        (318, 76, 4),
+        (566, 60, 6),
+        (942, 92, 5),
+        (1062, 296, 5),
+        (884, 332, 4),
+        (244, 326, 4),
+        (1518, 114, 5),
+        (1494, 308, 4),
+    ]
+    draw_starfield(d, W, H, seed=1507, exclude_boxes=exclude, star_count=88, sparkle_coords=sparkles)
+
+    # Subtle warm amber-gold dust motes drifting near top-left of the ESP brackets (like Forged Relics' guard motes)
+    mote_rng = random.Random(421)
+    mote_cols = [(217, 179, 106), (235, 198, 128), (184, 138, 74), (146, 218, 182)]
+    for _ in range(18):
+        mx = mote_rng.randint(sprite_x - 28, sprite_x + 76)
+        my = mote_rng.randint(sprite_y - 16, sprite_y + 62)
+        mc = mote_cols[mote_rng.randrange(len(mote_cols))]
+        if mote_rng.random() < 0.45:
+            d.rectangle([mx, my, mx + 1, my + 1], fill=mc)
+        else:
+            d.point((mx, my), fill=mc)
+
+    # Exact Forged Relics border geometry on 1600x400:
+    WHITE = (255, 255, 255, 255)
+    RAIL = (52, 168, 126, 255)  # Subtle, refined emerald hairline matching #6f52b8 saturation/value
+
+    # 1. Outer 5px white frame [22..1577, 22..377]
+    d.rectangle([22, 22, 1577, 26], fill=WHITE)
+    d.rectangle([22, 373, 1577, 377], fill=WHITE)
+    d.rectangle([22, 22, 26, 377], fill=WHITE)
+    d.rectangle([1573, 22, 1577, 377], fill=WHITE)
+
+    # 2. Solid 26x26 corner blocks
+    d.rectangle([22, 22, 47, 47], fill=WHITE)
+    d.rectangle([1552, 22, 1577, 47], fill=WHITE)
+    d.rectangle([22, 352, 47, 377], fill=WHITE)
+    d.rectangle([1552, 352, 1577, 377], fill=WHITE)
+
+    # 3. Outer paired 14x4px white telemetry ticks
+    for x0, x1 in [(70, 83), (96, 109), (1490, 1503), (1516, 1529)]:
+        d.rectangle([x0, 10, x1, 13], fill=WHITE)
+        d.rectangle([x0, 386, x1, 389], fill=WHITE)
+    for y0, y1 in [(70, 83), (96, 109), (290, 303), (316, 329)]:
+        d.rectangle([10, y0, 13, y1], fill=WHITE)
+        d.rectangle([1586, y0, 1589, y1], fill=WHITE)
+
+    # 4. Inner 2px top & bottom horizontal accent rails (x=48..1551, y=38..39 & y=360..361)
+    d.rectangle([48, 38, 1551, 39], fill=RAIL)
+    d.rectangle([48, 360, 1551, 361], fill=RAIL)
+
+    # 5. Right-side unframed Emerald Eye + Gold ESP Brackets hero sprite with soft aura
+    sprite = build_combined_sprite_native()
+    composite_sprite_with_aura(im, sprite, scale=SPRITE_SCALE, xy=(sprite_x, sprite_y))
+
+    # 6. Flat two-tone pixel wordmark: warm gold "SENSE" + cool mint-emerald "ESP"
+    #    (paralleling Forged Relics' warm gold #d9b36a "FORGED" + cool lavender #c2aef5 "RELICS")
+    GOLD_WORD = (217, 179, 106)   # #d9b36a
+    MINT_WORD = (134, 232, 190)   # #86e8be (balanced pastel-emerald counterpart to #c2aef5)
+    draw_flat_word(d, "SENSE", sense_x, word_y, BLOCK, GOLD_WORD)
+    draw_flat_word(d, "ESP", esp_x, word_y, BLOCK, MINT_WORD)
+
+    OUT_BANNER.parent.mkdir(parents=True, exist_ok=True)
+    im.convert("RGB").save(OUT_BANNER)
 
 
-def generate() -> None:
-    im = make_background(128, 128)
-    draw_scanner_frame(im)
-    draw_sparkles(im)
+def generate_icon() -> None:
+    """Generates matching 512x512 Modrinth icon and 128x128 Fabric mod icon."""
+    S = 512
+    im = Image.new("RGBA", (S, S), (7, 11, 13, 255))
+    px = im.load()
 
-    SCALE = 3
-    # Pad native sprites by 2px so MaxFilter(5) / MaxFilter(3) rims never clip at canvas edges
-    def pad_rgba(src: Image.Image, pad: int) -> Image.Image:
-        out = Image.new("RGBA", (src.width + pad * 2, src.height + pad * 2), (0, 0, 0, 0))
-        out.alpha_composite(src, (pad, pad))
-        return out
+    for y in range(S):
+        dy = (y - 256.0) / 220.0
+        for x in range(S):
+            dx = (x - 256.0) / 220.0
+            glow = max(0.0, 1.0 - math.hypot(dx, dy))
+            g2 = glow * glow
+            px[x, y] = (
+                int(7 + 10 * g2),
+                int(10 + 26 * g2),
+                int(13 + 21 * g2),
+                255,
+            )
 
-    eye_native = pad_rgba(build_eye_sprite_22x16(), 1)  # 24x18
-    eye_scaled = eye_native.resize((eye_native.width * SCALE, eye_native.height * SCALE), Image.Resampling.NEAREST)  # 72x54
-    eye_xy = ((128 - eye_scaled.width) // 2, (128 - eye_scaled.height) // 2)  # (28, 37)
+    d = ImageDraw.Draw(im)
 
-    brackets_native = pad_rgba(build_esp_brackets_native(), 1)  # 32x26
-    brackets_scaled = brackets_native.resize((brackets_native.width * SCALE, brackets_native.height * SCALE), Image.Resampling.NEAREST)  # 96x78
-    br_xy = ((128 - brackets_scaled.width) // 2, (128 - brackets_scaled.height) // 2)  # (16, 25)
+    # Sparse stars inside 512x512 icon
+    exclude = [
+        (96, 116, 416, 396),
+        (0, 0, 56, 56), (S - 57, 0, S - 1, 56),
+        (0, S - 57, 56, S - 1), (S - 57, S - 57, S - 1, S - 1),
+    ]
+    sparkles = [(116, 108, 5), (398, 118, 4), (108, 396, 4), (404, 404, 5)]
+    draw_starfield(d, S, S, seed=909, exclude_boxes=exclude, star_count=34, sparkle_coords=sparkles)
 
-    # Tight, subtle 1px-on-128-grid emerald rim around full padded silhouettes (never clips!)
-    eye_mask = eye_scaled.getchannel("A")
-    eye_aura_outer = Image.new("RGBA", eye_scaled.size, "#145238")
-    eye_aura_outer.putalpha(eye_mask.filter(ImageFilter.MaxFilter(5)).point(lambda v: v * 95 // 255))
-    im.alpha_composite(eye_aura_outer, eye_xy)
+    WHITE = (255, 255, 255, 255)
+    GOLD = (217, 179, 106, 255)
+    RAIL = (52, 168, 126, 255)
 
-    eye_rim = Image.new("RGBA", eye_scaled.size, "#2ad484")
-    eye_rim.putalpha(eye_mask.filter(ImageFilter.MaxFilter(3)).point(lambda v: v * 175 // 255))
-    im.alpha_composite(eye_rim, eye_xy)
+    # Stepped white frame [36..475] (9px thick) + 28x28 corner blocks (matching Forged Relics icon)
+    d.rectangle([36, 36, 475, 44], fill=WHITE)
+    d.rectangle([36, 467, 475, 475], fill=WHITE)
+    d.rectangle([36, 36, 44, 475], fill=WHITE)
+    d.rectangle([467, 36, 475, 475], fill=WHITE)
 
-    br_mask = brackets_scaled.getchannel("A")
-    br_rim = Image.new("RGBA", brackets_scaled.size, "#21a868")
-    br_rim.putalpha(br_mask.filter(ImageFilter.MaxFilter(3)).point(lambda v: v * 165 // 255))
-    im.alpha_composite(br_rim, br_xy)
+    d.rectangle([36, 36, 63, 63], fill=WHITE)
+    d.rectangle([448, 36, 475, 63], fill=WHITE)
+    d.rectangle([36, 448, 63, 475], fill=WHITE)
+    d.rectangle([448, 448, 475, 475], fill=WHITE)
 
-    im.alpha_composite(brackets_scaled, br_xy)
-    im.alpha_composite(eye_scaled, eye_xy)
+    # Inner 2px emerald hairline rails
+    d.rectangle([68, 52, 443, 53], fill=RAIL)
+    d.rectangle([68, 458, 443, 459], fill=RAIL)
+    d.rectangle([52, 68, 53, 443], fill=RAIL)
+    d.rectangle([458, 68, 459, 443], fill=RAIL)
 
-    OUT_128.parent.mkdir(parents=True, exist_ok=True)
+    # Outer white paired telemetry dashes
+    for a, b in [(64, 75), (82, 93), (418, 429), (436, 447)]:
+        d.rectangle([a, 24, b, 27], fill=WHITE)
+        d.rectangle([a, 484, b, 487], fill=WHITE)
+        d.rectangle([24, a, 27, b], fill=WHITE)
+        d.rectangle([484, a, 487, b], fill=WHITE)
+
+    # Four outer gold pixel crosses in corners (matching Forged Relics icon's 4 gold corner crosses)
+    for cx, cy in [(22, 22), (S - 23, 22), (22, S - 23), (S - 23, S - 23)]:
+        d.rectangle([cx - 8, cy - 2, cx + 8, cy + 2], fill=GOLD)
+        d.rectangle([cx - 2, cy - 8, cx + 2, cy + 8], fill=GOLD)
+        d.rectangle([cx - 5, cy - 5, cx + 5, cy + 5], fill=GOLD)
+
+    # Centered sprite (30x24 at 11x = 330x264)
+    sprite = build_combined_sprite_native()
+    sc = 11
+    composite_sprite_with_aura(
+        im,
+        sprite,
+        scale=sc,
+        xy=((S - 30 * sc) // 2, (S - 24 * sc) // 2),
+    )
+
     OUT_512.parent.mkdir(parents=True, exist_ok=True)
-
-    im.save(OUT_128)
-    im.resize((512, 512), Image.Resampling.NEAREST).save(OUT_512)
-    generate_banner(im)
-    print(f"Generated {OUT_128}, {OUT_512}, and {OUT_BANNER}")
-
-
-PIXEL_FONT = {
-    "A": ["01110", "11011", "10001", "11111", "10001", "10001", "10001"],
-    "B": ["11110", "10011", "10001", "11110", "10001", "10011", "11110"],
-    "C": ["01111", "11000", "10000", "10000", "10000", "11000", "01111"],
-    "D": ["11110", "10011", "10001", "10001", "10001", "10011", "11110"],
-    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
-    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
-    "G": ["01111", "11000", "10000", "10111", "10001", "11001", "01111"],
-    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
-    "I": ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
-    "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
-    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
-    "M": ["10001", "11011", "11111", "10101", "10001", "10001", "10001"],
-    "N": ["10001", "11001", "11001", "10101", "10011", "10011", "10001"],
-    "O": ["01110", "11011", "10001", "10001", "10001", "11011", "01110"],
-    "P": ["11110", "10011", "10001", "11110", "10000", "10000", "10000"],
-    "R": ["11110", "10011", "10001", "11110", "10100", "10010", "10001"],
-    "S": ["01111", "11000", "10000", "01110", "00001", "00011", "11110"],
-    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
-    "U": ["10001", "10001", "10001", "10001", "10001", "11011", "01110"],
-    "V": ["10001", "10001", "10001", "10001", "01010", "01110", "00100"],
-    "W": ["10001", "10001", "10001", "10101", "11111", "11011", "10001"],
-    "X": ["10001", "01010", "00100", "00100", "00100", "01010", "10001"],
-    "Y": ["10001", "01010", "00100", "00100", "00100", "00100", "00100"],
-    "0": ["01110", "10011", "10101", "10101", "11001", "11001", "01110"],
-    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
-    "2": ["01110", "10001", "00001", "00110", "01000", "10000", "11111"],
-    "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
-    "4": ["10010", "10010", "10010", "11111", "00010", "00010", "00010"],
-    "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
-    "6": ["01110", "10000", "11110", "10001", "10001", "10001", "01110"],
-    "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
-    "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
-    "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
-    ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
-    "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
-    "/": ["00001", "00010", "00100", "00100", "01000", "10000", "00000"],
-    ":": ["00000", "01100", "01100", "00000", "01100", "01100", "00000"],
-    "+": ["00000", "00100", "00100", "11111", "00100", "00100", "00000"],
-    " ": ["00000"] * 7,
-}
-
-
-def pixel_word_mask(text: str, scale: int) -> Image.Image:
-    text = text.upper()
-    w = max(1, len(text) * 6 - 1)
-    mask = Image.new("L", (w, 7), 0)
-    md = ImageDraw.Draw(mask)
-    for idx, ch in enumerate(text):
-        rows = PIXEL_FONT.get(ch, PIXEL_FONT[" "])
-        for y, row in enumerate(rows):
-            for x, bit in enumerate(row):
-                if bit == "1":
-                    md.point((idx * 6 + x, y), fill=255)
-    return mask.resize((w * scale, 7 * scale), Image.Resampling.NEAREST)
-
-
-def draw_pixel_text(canvas: Image.Image, text: str, xy: tuple[int, int], scale: int, top_col: tuple[int, int, int], bot_col: tuple[int, int, int], outline_col: str = "#050b0e") -> int:
-    mask = pixel_word_mask(text, scale)
-    shadow = Image.new("RGBA", (mask.width + 4, mask.height + 4), (0, 0, 0, 0))
-    padded = Image.new("L", (mask.width + 4, mask.height + 4), 0)
-    padded.paste(mask, (2, 2))
-    sh_layer = Image.new("RGBA", padded.size, outline_col)
-    sh_layer.putalpha(padded.filter(ImageFilter.MaxFilter(3)))
-    canvas.alpha_composite(sh_layer, (xy[0] - 2, xy[1] - 1))
-
-    grad = Image.new("RGBA", mask.size)
-    gd = ImageDraw.Draw(grad)
-    for yy in range(mask.height):
-        t = yy / max(1, mask.height - 1)
-        c = (
-            int(top_col[0] + (bot_col[0] - top_col[0]) * t),
-            int(top_col[1] + (bot_col[1] - top_col[1]) * t),
-            int(top_col[2] + (bot_col[2] - top_col[2]) * t),
-            255,
-        )
-        gd.line([(0, yy), (mask.width, yy)], fill=c)
-    grad.putalpha(mask)
-    canvas.alpha_composite(grad, xy)
-    return mask.width
-
-
-def generate_banner(icon_128: Image.Image) -> None:
-    """Procedural 480x160 pixel-art banner upscaled 4x NEAREST to 1920x640."""
-    W, H = 480, 160
-    banner = Image.new("RGBA", (W, H))
-    px = banner.load()
-    for y in range(H):
-        for x in range(W):
-            if x < 8 or x >= W - 8 or y < 8 or y >= H - 8:
-                mod = (((x // 2) * 5 + (y // 2) * 3) % 4) - 1
-                px[x, y] = (9 + mod, 15 + mod * 2, 19 + mod * 2, 255)
-            else:
-                r = math.hypot((x - 165) / 290.0, (y - 80) / 115.0)
-                v = max(0, 7 - int(r * 7))
-                grid = 1 if (x % 16 == 0 or y % 16 == 0) else 0
-                px[x, y] = (5 + v + grid, 11 + v * 3 + grid * 3, 15 + v * 3 + grid * 2, 255)
-
-    b = ImageDraw.Draw(banner)
-    # Outer beveled frame + crisp white stepped L-corners + emerald scanner rails
-    b.rectangle([0, 0, W - 1, H - 1], outline="#050a0d")
-    b.line([(1, 1), (W - 2, 1)], fill="#213a40")
-    b.line([(1, H - 2), (W - 2, H - 2)], fill="#0b1518")
-
-    WHITE = "#eafcf4"
-    b.rectangle([8, 8, W - 9, 9], fill=WHITE)
-    b.rectangle([8, H - 10, W - 9, H - 9], fill=WHITE)
-    b.rectangle([8, 8, 9, H - 9], fill=WHITE)
-    b.rectangle([W - 10, 8, W - 9, H - 9], fill=WHITE)
-
-    b.line([(14, 12), (W - 15, 12)], fill="#2fd483")
-    b.line([(14, H - 13), (W - 15, H - 13)], fill="#2fd483")
-
-    # Corner emerald crosses
-    for cx, cy in [(4, 4), (W - 5, 4), (4, H - 5), (W - 5, H - 5)]:
-        b.line([(cx - 1, cy), (cx + 1, cy)], fill="#34d399")
-        b.line([(cx, cy - 1), (cx, cy + 1)], fill="#34d399")
-        b.point((cx, cy), fill="#a7f3d0")
-
-    # Decorative tactical radar silhouette on far right side (clear of title & subtitle!)
-    rcx, rcy = 432, 80
-    b.rectangle([rcx - 32, rcy - 50, rcx + 32, rcy + 50], fill="#071217", outline="#1c4a3e")
-    b.rectangle([rcx - 16, rcy - 24, rcx + 16, rcy + 24], outline="#153830")
-    b.line([(rcx - 29, rcy), (rcx + 29, rcy)], fill="#14332d")
-    b.line([(rcx, rcy - 47), (rcx, rcy + 47)], fill="#14332d")
-    for step in range(4, 44, 2):
-        sp = (step * 4) // 9
-        b.point((rcx - sp, rcy - step), fill="#26738c")
-        b.point((rcx + sp, rcy - step), fill="#26738c")
-    for dx, dy, col in [(-12, -26, "#ff4d5a"), (14, -11, "#38d6fc"), (-18, 19, "#ffd15c"), (9, 30, "#c084fc")]:
-        b.rectangle([rcx + dx - 1, rcy + dy - 1, rcx + dx + 1, rcy + dy + 1], fill=col)
-    b.rectangle([rcx - 1, rcy - 1, rcx + 1, rcy + 1], fill="#eafcf4")
-
-    # Composite 128x128 icon on the left
-    banner.alpha_composite(icon_128, (20, 16))
-
-    # Crisp pixel title: SENSE + ESP (scale 4 so nothing touches the right radar)
-    w_sense = draw_pixel_text(banner, "SENSE", (162, 28), 4, (238, 255, 246), (82, 222, 148))
-    draw_pixel_text(banner, "ESP", (162 + w_sense + 8, 28), 4, (255, 246, 178), (242, 182, 52))
-
-    # Subtitle & 3 clean feature pills (fits inside 162..392 without touching the radar)
-    draw_pixel_text(banner, "TACTICAL RADAR + TARGET HUD", (163, 74), 1, (208, 244, 228), (134, 186, 170))
-    b.line([(163, 91), (388, 91)], fill="#1c4a3e")
-
-    badges = [
-        ("FABRIC 1.21-26.3", "#112b26", "#2fd483", (180, 252, 216)),
-        ("RADAR", "#162432", "#38d6fc", (186, 238, 255)),
-        ("FAIR LOS", "#292112", "#f5b841", (255, 232, 168)),
-    ]
-    bx = 162
-    by = 104
-    for label, bg_hex, bd_hex, fg_rgb in badges:
-        mask = pixel_word_mask(label, 1)
-        pw = mask.width + 10
-        ph = 15
-        if bx + pw < 394:
-            b.rectangle([bx, by, bx + pw, by + ph], fill=bg_hex, outline=bd_hex)
-            draw_pixel_text(banner, label, (bx + 5, by + 4), 1, fg_rgb, fg_rgb)
-            bx += pw + 6
-
-    banner.resize((1920, 640), Image.Resampling.NEAREST).save(OUT_BANNER)
-
+    OUT_128.parent.mkdir(parents=True, exist_ok=True)
+    im.convert("RGB").save(OUT_512)
+    im.resize((128, 128), Image.Resampling.LANCZOS).convert("RGB").save(OUT_128)
 
 
 if __name__ == "__main__":
-    generate()
+    generate_banner()
+    generate_icon()
+    print(f"Generated {OUT_BANNER}, {OUT_512}, and {OUT_128}")
