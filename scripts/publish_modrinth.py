@@ -98,7 +98,12 @@ def main() -> int:
 
     jar_dir = sys.argv[1] if len(sys.argv) > 1 else "dist"
     changelog_path = sys.argv[2] if len(sys.argv) > 2 else "CHANGELOG.md"
-    changelog = open(changelog_path, encoding="utf-8").read().strip() if os.path.exists(changelog_path) else ""
+    changelog_raw = open(changelog_path, encoding="utf-8").read().strip() if os.path.exists(changelog_path) else ""
+    parts = changelog_raw.split("\n## ")
+    if len(parts) > 1 and parts[1].strip():
+        changelog = "## " + parts[1].strip()
+    else:
+        changelog = changelog_raw
 
     already = existing_versions(token)
     jars = sorted(glob.glob(os.path.join(jar_dir, "espmod-*.jar")))

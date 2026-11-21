@@ -18,6 +18,8 @@ import math
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_512 = ROOT / "assets" / "icon.png"
+OUT_BANNER = ROOT / "assets" / "banner.png"
+OUT_SHOWCASE = ROOT / "assets" / "hud_showcase.png"
 OUT_128 = ROOT / "common" / "src" / "main" / "resources" / "assets" / "espmod" / "icon.png"
 
 
@@ -276,7 +278,286 @@ def generate() -> None:
 
     im.save(OUT_128)
     im.resize((512, 512), Image.Resampling.NEAREST).save(OUT_512)
-    print(f"Generated {OUT_128} (128x128) and {OUT_512} (512x512 NEAREST)")
+    generate_banner(im)
+    generate_hud_showcase()
+    print(f"Generated {OUT_128}, {OUT_512}, {OUT_BANNER}, and {OUT_SHOWCASE}")
+
+
+PIXEL_FONT = {
+    "A": ["01110", "11011", "10001", "11111", "10001", "10001", "10001"],
+    "B": ["11110", "10011", "10001", "11110", "10001", "10011", "11110"],
+    "C": ["01111", "11000", "10000", "10000", "10000", "11000", "01111"],
+    "D": ["11110", "10011", "10001", "10001", "10001", "10011", "11110"],
+    "E": ["11111", "10000", "10000", "11110", "10000", "10000", "11111"],
+    "F": ["11111", "10000", "10000", "11110", "10000", "10000", "10000"],
+    "G": ["01111", "11000", "10000", "10111", "10001", "11001", "01111"],
+    "H": ["10001", "10001", "10001", "11111", "10001", "10001", "10001"],
+    "I": ["11111", "00100", "00100", "00100", "00100", "00100", "11111"],
+    "K": ["10001", "10010", "10100", "11000", "10100", "10010", "10001"],
+    "L": ["10000", "10000", "10000", "10000", "10000", "10000", "11111"],
+    "M": ["10001", "11011", "11111", "10101", "10001", "10001", "10001"],
+    "N": ["10001", "11001", "11001", "10101", "10011", "10011", "10001"],
+    "O": ["01110", "11011", "10001", "10001", "10001", "11011", "01110"],
+    "P": ["11110", "10011", "10001", "11110", "10000", "10000", "10000"],
+    "R": ["11110", "10011", "10001", "11110", "10100", "10010", "10001"],
+    "S": ["01111", "11000", "10000", "01110", "00001", "00011", "11110"],
+    "T": ["11111", "00100", "00100", "00100", "00100", "00100", "00100"],
+    "U": ["10001", "10001", "10001", "10001", "10001", "11011", "01110"],
+    "V": ["10001", "10001", "10001", "10001", "01010", "01110", "00100"],
+    "W": ["10001", "10001", "10001", "10101", "11111", "11011", "10001"],
+    "X": ["10001", "01010", "00100", "00100", "00100", "01010", "10001"],
+    "Y": ["10001", "01010", "00100", "00100", "00100", "00100", "00100"],
+    "0": ["01110", "10011", "10101", "10101", "11001", "11001", "01110"],
+    "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+    "2": ["01110", "10001", "00001", "00110", "01000", "10000", "11111"],
+    "3": ["11110", "00001", "00001", "01110", "00001", "00001", "11110"],
+    "4": ["10010", "10010", "10010", "11111", "00010", "00010", "00010"],
+    "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+    "6": ["01110", "10000", "11110", "10001", "10001", "10001", "01110"],
+    "7": ["11111", "00001", "00010", "00100", "01000", "01000", "01000"],
+    "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+    "9": ["01110", "10001", "10001", "01111", "00001", "00001", "01110"],
+    ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
+    "-": ["00000", "00000", "00000", "11111", "00000", "00000", "00000"],
+    "/": ["00001", "00010", "00100", "00100", "01000", "10000", "00000"],
+    ":": ["00000", "01100", "01100", "00000", "01100", "01100", "00000"],
+    "+": ["00000", "00100", "00100", "11111", "00100", "00100", "00000"],
+    " ": ["00000"] * 7,
+}
+
+
+def pixel_word_mask(text: str, scale: int) -> Image.Image:
+    text = text.upper()
+    w = max(1, len(text) * 6 - 1)
+    mask = Image.new("L", (w, 7), 0)
+    md = ImageDraw.Draw(mask)
+    for idx, ch in enumerate(text):
+        rows = PIXEL_FONT.get(ch, PIXEL_FONT[" "])
+        for y, row in enumerate(rows):
+            for x, bit in enumerate(row):
+                if bit == "1":
+                    md.point((idx * 6 + x, y), fill=255)
+    return mask.resize((w * scale, 7 * scale), Image.Resampling.NEAREST)
+
+
+def draw_pixel_text(canvas: Image.Image, text: str, xy: tuple[int, int], scale: int, top_col: tuple[int, int, int], bot_col: tuple[int, int, int], outline_col: str = "#050b0e") -> int:
+    mask = pixel_word_mask(text, scale)
+    shadow = Image.new("RGBA", (mask.width + 4, mask.height + 4), (0, 0, 0, 0))
+    padded = Image.new("L", (mask.width + 4, mask.height + 4), 0)
+    padded.paste(mask, (2, 2))
+    sh_layer = Image.new("RGBA", padded.size, outline_col)
+    sh_layer.putalpha(padded.filter(ImageFilter.MaxFilter(3)))
+    canvas.alpha_composite(sh_layer, (xy[0] - 2, xy[1] - 1))
+
+    grad = Image.new("RGBA", mask.size)
+    gd = ImageDraw.Draw(grad)
+    for yy in range(mask.height):
+        t = yy / max(1, mask.height - 1)
+        c = (
+            int(top_col[0] + (bot_col[0] - top_col[0]) * t),
+            int(top_col[1] + (bot_col[1] - top_col[1]) * t),
+            int(top_col[2] + (bot_col[2] - top_col[2]) * t),
+            255,
+        )
+        gd.line([(0, yy), (mask.width, yy)], fill=c)
+    grad.putalpha(mask)
+    canvas.alpha_composite(grad, xy)
+    return mask.width
+
+
+def generate_banner(icon_128: Image.Image) -> None:
+    """Procedural 480x160 pixel-art banner upscaled 4x NEAREST to 1920x640."""
+    W, H = 480, 160
+    banner = Image.new("RGBA", (W, H))
+    px = banner.load()
+    for y in range(H):
+        for x in range(W):
+            if x < 8 or x >= W - 8 or y < 8 or y >= H - 8:
+                mod = (((x // 2) * 5 + (y // 2) * 3) % 4) - 1
+                px[x, y] = (9 + mod, 15 + mod * 2, 19 + mod * 2, 255)
+            else:
+                r = math.hypot((x - 165) / 290.0, (y - 80) / 115.0)
+                v = max(0, 7 - int(r * 7))
+                grid = 1 if (x % 16 == 0 or y % 16 == 0) else 0
+                px[x, y] = (5 + v + grid, 11 + v * 3 + grid * 3, 15 + v * 3 + grid * 2, 255)
+
+    b = ImageDraw.Draw(banner)
+    # Outer beveled frame + crisp white stepped L-corners + emerald scanner rails
+    b.rectangle([0, 0, W - 1, H - 1], outline="#050a0d")
+    b.line([(1, 1), (W - 2, 1)], fill="#213a40")
+    b.line([(1, H - 2), (W - 2, H - 2)], fill="#0b1518")
+
+    WHITE = "#eafcf4"
+    b.rectangle([8, 8, W - 9, 9], fill=WHITE)
+    b.rectangle([8, H - 10, W - 9, H - 9], fill=WHITE)
+    b.rectangle([8, 8, 9, H - 9], fill=WHITE)
+    b.rectangle([W - 10, 8, W - 9, H - 9], fill=WHITE)
+
+    b.line([(14, 12), (W - 15, 12)], fill="#2fd483")
+    b.line([(14, H - 13), (W - 15, H - 13)], fill="#2fd483")
+
+    # Corner emerald crosses
+    for cx, cy in [(4, 4), (W - 5, 4), (4, H - 5), (W - 5, H - 5)]:
+        b.line([(cx - 1, cy), (cx + 1, cy)], fill="#34d399")
+        b.line([(cx, cy - 1), (cx, cy + 1)], fill="#34d399")
+        b.point((cx, cy), fill="#a7f3d0")
+
+    # Decorative tactical radar silhouette on far right side (clear of title & subtitle!)
+    rcx, rcy = 432, 80
+    b.rectangle([rcx - 32, rcy - 50, rcx + 32, rcy + 50], fill="#071217", outline="#1c4a3e")
+    b.rectangle([rcx - 16, rcy - 24, rcx + 16, rcy + 24], outline="#153830")
+    b.line([(rcx - 29, rcy), (rcx + 29, rcy)], fill="#14332d")
+    b.line([(rcx, rcy - 47), (rcx, rcy + 47)], fill="#14332d")
+    for step in range(4, 44, 2):
+        sp = (step * 4) // 9
+        b.point((rcx - sp, rcy - step), fill="#26738c")
+        b.point((rcx + sp, rcy - step), fill="#26738c")
+    for dx, dy, col in [(-12, -26, "#ff4d5a"), (14, -11, "#38d6fc"), (-18, 19, "#ffd15c"), (9, 30, "#c084fc")]:
+        b.rectangle([rcx + dx - 1, rcy + dy - 1, rcx + dx + 1, rcy + dy + 1], fill=col)
+    b.rectangle([rcx - 1, rcy - 1, rcx + 1, rcy + 1], fill="#eafcf4")
+
+    # Composite 128x128 icon on the left
+    banner.alpha_composite(icon_128, (20, 16))
+
+    # Crisp pixel title: SENSE + ESP (scale 4 so nothing touches the right radar)
+    w_sense = draw_pixel_text(banner, "SENSE", (162, 28), 4, (238, 255, 246), (82, 222, 148))
+    draw_pixel_text(banner, "ESP", (162 + w_sense + 8, 28), 4, (255, 246, 178), (242, 182, 52))
+
+    # Subtitle & 3 clean feature pills (fits inside 162..392 without touching the radar)
+    draw_pixel_text(banner, "TACTICAL RADAR + TARGET HUD", (163, 74), 1, (208, 244, 228), (134, 186, 170))
+    b.line([(163, 91), (388, 91)], fill="#1c4a3e")
+
+    badges = [
+        ("FABRIC 1.21-26.3", "#112b26", "#2fd483", (180, 252, 216)),
+        ("RADAR", "#162432", "#38d6fc", (186, 238, 255)),
+        ("FAIR LOS", "#292112", "#f5b841", (255, 232, 168)),
+    ]
+    bx = 162
+    by = 104
+    for label, bg_hex, bd_hex, fg_rgb in badges:
+        mask = pixel_word_mask(label, 1)
+        pw = mask.width + 10
+        ph = 15
+        if bx + pw < 394:
+            b.rectangle([bx, by, bx + pw, by + ph], fill=bg_hex, outline=bd_hex)
+            draw_pixel_text(banner, label, (bx + 5, by + 4), 1, fg_rgb, fg_rgb)
+            bx += pw + 6
+
+    banner.resize((1920, 640), Image.Resampling.NEAREST).save(OUT_BANNER)
+
+
+def generate_hud_showcase() -> None:
+    """Procedural 420x236 pixel-art HUD preview upscaled 3x NEAREST to 1260x708."""
+    W, H = 420, 236
+    im = Image.new("RGBA", (W, H))
+    px = im.load()
+    # Stylized dark cavern / deepslate horizon backdrop
+    for y in range(H):
+        for x in range(W):
+            horizon = 126
+            if y < horizon:
+                t = y / horizon
+                px[x, y] = (int(8 + 10 * t), int(14 + 18 * t), int(22 + 24 * t), 255)
+            else:
+                t = (y - horizon) / (H - horizon)
+                checker = 2 if (((x // 12) + (y // 8)) % 2 == 0) else 0
+                px[x, y] = (int(12 + 8 * t) + checker, int(18 + 10 * t) + checker, int(24 + 12 * t) + checker, 255)
+
+    d = ImageDraw.Draw(im)
+    # Perspective grid lines on floor
+    for gx in range(-160, 580, 40):
+        d.line([(210 + (gx - 210) // 4, 126), (gx, H - 1)], fill="#162632")
+    for gy in [136, 150, 168, 192, 220]:
+        d.line([(0, gy), (W - 1, gy)], fill="#15232e")
+
+    # 1. Status HUD Pill (top-left)
+    d.rectangle([8, 8, 150, 23], fill="#080e16", outline="#1e3538")
+    d.rectangle([8, 8, 10, 23], fill="#34d399")
+    draw_pixel_text(im, "SENSEESP", (14, 12), 1, (241, 245, 249), (203, 213, 225))
+    d.rectangle([68, 10, 100, 21], fill="#113328", outline="#34d399")
+    draw_pixel_text(im, "FULL", (73, 12), 1, (110, 242, 178), (52, 211, 153), outline_col="#113328")
+    draw_pixel_text(im, "4 TGT", (107, 12), 1, (148, 163, 184), (148, 163, 184))
+
+    # 2. Tactical Mini-Radar below Status Pill
+    rx, ry, rs = 8, 27, 64
+    d.rectangle([rx, ry, rx + rs, ry + rs], fill="#070d14", outline="#1e3a34")
+    d.line([(rx + 1, ry + 1), (rx + rs - 1, ry + 1)], fill="#246b56")
+    rcx, rcy = rx + rs // 2, ry + rs // 2
+    d.line([(rx + 3, rcy), (rx + rs - 3, rcy)], fill="#1c2c3b")
+    d.line([(rcx, ry + 3), (rcx, ry + rs - 3)], fill="#1c2c3b")
+    d.rectangle([rcx - 14, rcy - 14, rcx + 14, rcy + 14], outline="#14382e")
+    for i in range(3, 27, 2):
+        sp = (i * 5) // 8
+        d.point((rcx - sp, rcy - i), fill="#266885")
+        d.point((rcx + sp, rcy - i), fill="#266885")
+    # Blips
+    d.rectangle([rcx - 2, rcy - 18, rcx + 2, rcy - 14], fill="#ffffff")
+    d.rectangle([rcx - 1, rcy - 17, rcx + 1, rcy - 15], fill="#ff4d5a")
+    d.rectangle([rcx + 15, rcy - 8, rcx + 17, rcy - 6], fill="#38d6fc")
+    d.rectangle([rcx - 18, rcy + 11, rcx - 16, rcy + 13], fill="#c084fc")
+    d.rectangle([rcx - 1, rcy - 1, rcx + 1, rcy + 1], fill="#34d399")
+
+    # 3. Center Locked Target: 3D Pulse Ring + 2D Corner Brackets + Vertical HP Bar + Nametag Card
+    tx1, ty1, tx2, ty2 = 186, 66, 234, 152
+    # Silhouette mob figure inside
+    d.rectangle([202, 74, 218, 90], fill="#1b2e28", outline="#28453c")
+    d.rectangle([200, 91, 220, 124], fill="#182924", outline="#254038")
+    d.rectangle([202, 125, 208, 148], fill="#14221e")
+    d.rectangle([212, 125, 218, 148], fill="#14221e")
+    # Animated Pulse Ring ellipse around target
+    d.ellipse([178, 104, 242, 122], outline="#ff858e", width=2)
+    d.ellipse([178, 142, 242, 156], outline="#8f2934", width=1)
+    # 2D Locked Corner Brackets
+    for cx0, cy0, sx, sy in [(tx1, ty1, 1, 1), (tx2, ty1, -1, 1), (tx1, ty2, 1, -1), (tx2, ty2, -1, -1)]:
+        d.line([(cx0, cy0), (cx0 + 11 * sx, cy0)], fill="#ff9ea6", width=2)
+        d.line([(cx0, cy0), (cx0, cy0 + 11 * sy)], fill="#ff9ea6", width=2)
+    # Smooth Vertical HP bar on left
+    d.rectangle([tx1 - 6, ty1, tx1 - 3, ty2], fill="#060a12")
+    d.rectangle([tx1 - 5, ty1 + 18, tx1 - 4, ty2 - 1], fill="#4ade80")
+    # Nametag card above target
+    ncw = pixel_word_mask("VINDICATOR 12HP 8M", 1).width + 14
+    ncx, ncy = 210 - ncw // 2, 47
+    d.rectangle([ncx, ncy, ncx + ncw, ncy + 14], fill="#080e16", outline="#1e3246")
+    d.rectangle([ncx, ncy, ncx + 2, ncy + 14], fill="#ff4d5a")
+    draw_pixel_text(im, "VINDICATOR 12HP 8M", (ncx + 7, ncy + 4), 1, (248, 250, 252), (186, 230, 210))
+
+    # 4. Secondary Player target on right (smooth double-helix Spiral style)
+    px1, py1, px2, py2 = 304, 78, 340, 144
+    d.rectangle([315, 84, 329, 98], fill="#182636", outline="#28425c")
+    d.rectangle([313, 99, 331, 140], fill="#14202e", outline="#22384f")
+    spiral_a = [(int(322 + math.sin(i * 0.42) * 18), 140 - i * 3) for i in range(19)]
+    spiral_b = [(int(322 - math.sin(i * 0.42) * 18), 140 - i * 3) for i in range(19)]
+    d.line(spiral_b, fill="#1d6d86", width=1)
+    d.line(spiral_a, fill="#38d6fc", width=2)
+    acw = pixel_word_mask("ALEX 19M", 1).width + 14
+    acx = 322 - acw // 2
+    d.rectangle([acx, 61, acx + acw, 75], fill="#080e16", outline="#1e3246")
+    d.rectangle([acx, 61, acx + 2, 75], fill="#38d6fc")
+    draw_pixel_text(im, "ALEX 19M", (acx + 7, 65), 1, (241, 245, 249), (148, 212, 248))
+
+    # 5. Storage Chest Corner Box on left (SP/OP)
+    bx1, by1, bx2, by2 = 88, 118, 118, 146
+    d.rectangle([bx1 + 3, by1 + 3, bx2 - 3, by2 - 3], fill="#332411", outline="#f5b841")
+    for cx0, cy0, sx, sy in [(bx1, by1, 1, 1), (bx2, by1, -1, 1), (bx1, by2, 1, -1), (bx2, by2, -1, -1)]:
+        d.line([(cx0, cy0), (cx0 + 7 * sx, cy0)], fill="#ffd15c", width=2)
+        d.line([(cx0, cy0), (cx0, cy0 + 7 * sy)], fill="#ffd15c", width=2)
+
+    # 6. Crosshair + Target HUD Inspector Card below crosshair
+    d.line([(207, 118), (213, 118)], fill="#eafcf4")
+    d.line([(210, 115), (210, 121)], fill="#eafcf4")
+
+    cx_card, cy_card, cw, ch = 142, 168, 136, 34
+    d.rectangle([cx_card, cy_card, cx_card + cw, cy_card + ch], fill="#080e16", outline="#1e3246")
+    d.line([(cx_card + 1, cy_card + 1), (cx_card + cw - 1, cy_card + 1)], fill="#2b4865")
+    d.rectangle([cx_card, cy_card, cx_card + 2, cy_card + ch], fill="#ff4d5a")
+    draw_pixel_text(im, "VINDICATOR", (cx_card + 7, cy_card + 5), 1, (248, 250, 252), (226, 232, 240))
+    draw_pixel_text(im, "8.4M 4ARM", (cx_card + 78, cy_card + 5), 1, (148, 163, 184), (148, 163, 184))
+    d.rectangle([cx_card + 7, cy_card + 16, cx_card + cw - 7, cy_card + 21], fill="#04070d")
+    d.rectangle([cx_card + 7, cy_card + 16, cx_card + 102, cy_card + 21], fill="#34d399")
+    d.line([(cx_card + 7, cy_card + 16), (cx_card + 102, cy_card + 16)], fill="#a7f3d0")
+    draw_pixel_text(im, "19.0 / 24 HP", (cx_card + 7, cy_card + 24), 1, (203, 213, 225), (148, 163, 184))
+
+    im.resize((W * 3, H * 3), Image.Resampling.NEAREST).save(OUT_SHOWCASE)
 
 
 if __name__ == "__main__":

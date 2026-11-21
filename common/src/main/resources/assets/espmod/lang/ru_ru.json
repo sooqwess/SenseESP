@@ -4,7 +4,7 @@
   "key.category.espmod.keys": "SenseESP",
   "key.espmod.toggle": "Переключить SenseESP",
   "key.espmod.config": "Открыть настройки SenseESP",
-  "key.espmod.hud": "Переключить мини-панель HUD",
+  "key.espmod.hud": "Переключить HUD и радар",
 
   "msg.espmod.enabled": "SenseESP: Включён",
   "msg.espmod.disabled": "SenseESP: Выключен",
@@ -15,6 +15,7 @@
   "hud.espmod.mode.full": "FULL",
   "hud.espmod.mode.los": "LOS",
   "hud.espmod.targets": "целей: %s",
+  "hud.espmod.locked": "ЦЕЛЬ",
 
   "config.espmod.title": "Настройки SenseESP",
   "config.espmod.category.general": "Основное и HUD",
@@ -25,12 +26,17 @@
 
   "config.espmod.enabled": "Включить SenseESP",
   "config.espmod.show_status_hud": "Показывать статус-панель HUD",
-  "config.espmod.status_hud_corner": "Позиция статус-панели",
+  "config.espmod.status_hud_corner": "Угол статус-панели и радара",
+  "config.espmod.show_target_hud": "Карточка цели под прицелом (Target HUD)",
+  "config.espmod.show_radar": "Тактический мини-радар",
+  "config.espmod.radar_size": "Размер мини-радара (пикс.)",
+  "config.espmod.show_pointers": "Стрелки направления вне экрана",
   "config.espmod.max_distance": "Макс. дистанция рендера",
   "config.espmod.distance_fade": "Плавное затухание вдали",
 
-  "config.espmod.render_boxes": "3D боксы",
-  "config.espmod.box_style": "Стиль 3D боксов",
+  "config.espmod.render_boxes": "3D подсветка в мире",
+  "config.espmod.box_style": "Стиль 3D подсветки",
+  "config.espmod.hit_flash": "Багровая вспышка при ударе",
   "config.espmod.render_2d": "2D рамки на экране",
   "config.espmod.corner_2d": "Угловые 2D скобки",
   "config.espmod.render_outlines": "Контурное свечение (Одиночная / OP)",

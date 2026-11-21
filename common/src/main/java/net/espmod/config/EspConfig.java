@@ -20,12 +20,17 @@ public final class EspConfig {
     public boolean enabled = true;
     public boolean showStatusHud = true;
     public HudCorner statusHudCorner = HudCorner.TOP_LEFT;
+    public boolean showTargetHud = true;
+    public boolean showRadar = true;
+    public int radarSize = 68;
+    public boolean showDirectionPointers = true;
     public double maxDistance = 96.0;
     public boolean distanceFade = true;
 
     // Visual Styles
     public boolean renderBoxes = true;
     public BoxStyle boxStyle = BoxStyle.FILLED;
+    public boolean hitFlashHighlight = true;
     public boolean render2DOverlay = true;
     public boolean corner2DBox = true;
     public boolean renderOutlines = false;
@@ -81,6 +86,7 @@ public final class EspConfig {
                     loaded.lineWidth = Math.max(1.0f, Math.min(5.0f, loaded.lineWidth));
                     loaded.fillOpacity = Math.max(0.05f, Math.min(0.60f, loaded.fillOpacity));
                     loaded.maxDistance = Math.max(8.0, Math.min(256.0, loaded.maxDistance));
+                    loaded.radarSize = Math.max(48, Math.min(120, loaded.radarSize));
                     instance = loaded;
                     return;
                 }

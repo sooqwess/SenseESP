@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0
+
+- Added **Pulse Ring** and **Spiral** animated 3D highlight styles alongside `Filled`, `Corners`, and `Wireframe`.
+- Added **Crosshair Target HUD** inspector card with smooth health interpolation, absorption bar, distance, and armor readout.
+- Added **Tactical Mini-Radar** (`48`–`120 px`) with FOV cone, range grid, and category-colored target blips.
+- Added **Off-Screen Direction Pointers** around the crosshair for nearby tracked entities outside the camera view.
+- Added **Crimson Hit-Flash** (`hurtTime`) and crosshair lock-on highlight accents on both 3D and 2D overlays.
+- Upgraded glass panel styling, smooth HP transitions, and absorption bars across nametags, vertical HP bars, and status HUD.
+- Expanded `scripts/draw_branding.py` to procedurally generate the pixel-art project banner and HUD layout preview.
+
 ## 1.4.0
 
 - Added full support for every stable Minecraft release from `1.21` through `26.3` (`1.21`–`1.21.11`, `26.1`–`26.1.2`, `26.2`, `26.3`).

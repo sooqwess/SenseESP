@@ -3,5 +3,7 @@ package net.espmod.config;
 public enum BoxStyle {
     WIREFRAME,
     CORNERS,
-    FILLED
+    FILLED,
+    PULSE_RING,
+    SPIRAL
 }

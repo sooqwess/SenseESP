@@ -16,6 +16,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.VertexRendering;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
@@ -28,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class EspWorldRenderer {
-    private record BoxEntry(Box box, int rgb, float fade, boolean isBlock) {}
+    private record BoxEntry(Box box, int rgb, float fade, boolean isBlock, int seed) {}
 
     private EspWorldRenderer() {}
 
@@ -50,6 +51,8 @@ public final class EspWorldRenderer {
 
         boolean bypassWalls = EspPolicy.canBypassWalls(client);
         double maxDistSq = cfg.maxDistance * cfg.maxDistance;
+        double animSec = ColorUtil.animSeconds();
+        Entity crosshair = client.targetedEntity;
         List<BoxEntry> entries = new ArrayList<>();
 
         int entityCount = 0;
@@ -72,6 +75,13 @@ public final class EspWorldRenderer {
 
             float fade = ColorUtil.computeDistanceAlpha(Math.sqrt(distSq), cfg.maxDistance, cfg.distanceFade);
             int rgb = EntityClassifier.getEntityColor(entity, cfg);
+            if (cfg.hitFlashHighlight && entity instanceof LivingEntity living && living.hurtTime > 0) {
+                float ht = Math.min(1.0f, living.hurtTime / 10.0f);
+                rgb = ColorUtil.lerpRgb(rgb, 0xFF2E4C, ht * 0.85f);
+            }
+            if (crosshair != null && crosshair.getId() == entity.getId()) {
+                rgb = ColorUtil.lerpRgb(rgb, 0xFFFFFF, 0.25f);
+            }
 
             double ix = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
             double iy = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
@@ -79,7 +89,7 @@ public final class EspWorldRenderer {
             Box box = entity.getBoundingBox()
                 .offset(ix - entity.getX(), iy - entity.getY(), iz - entity.getZ())
                 .expand(0.04);
-            entries.add(new BoxEntry(box, rgb, fade, false));
+            entries.add(new BoxEntry(box, rgb, fade, false, entity.getId()));
         }
 
         int blockCount = 0;
@@ -111,7 +121,7 @@ public final class EspWorldRenderer {
                                 pos.getX() + 0.04, pos.getY() + 0.04, pos.getZ() + 0.04,
                                 pos.getX() + 0.96, pos.getY() + 0.96, pos.getZ() + 0.96
                             );
-                            entries.add(new BoxEntry(blockBox, rgb, fade, true));
+                            entries.add(new BoxEntry(blockBox, rgb, fade, true, pos.hashCode()));
                         }
                     }
                 }
@@ -167,10 +177,17 @@ public final class EspWorldRenderer {
                 float g = ColorUtil.green(e.rgb());
                 float b = ColorUtil.blue(e.rgb());
                 float strokeA = 0.92f * e.fade();
+                BoxStyle style = e.isBlock() && (cfg.boxStyle == BoxStyle.PULSE_RING || cfg.boxStyle == BoxStyle.SPIRAL)
+                    ? BoxStyle.CORNERS
+                    : cfg.boxStyle;
 
                 if (cfg.renderBoxes) {
-                    if (cfg.boxStyle == BoxStyle.CORNERS) {
+                    if (style == BoxStyle.CORNERS) {
                         drawCornerLines(matrices, lines, box, r, g, b, strokeA);
+                    } else if (style == BoxStyle.PULSE_RING) {
+                        drawPulseRing(matrices, lines, box, e.rgb(), e.fade(), animSec, e.seed());
+                    } else if (style == BoxStyle.SPIRAL) {
+                        drawSpiral(matrices, lines, box, e.rgb(), e.fade(), animSec, e.seed());
                     } else {
                         VertexRendering.drawBox(matrices.peek(), lines, box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ, r, g, b, strokeA);
                     }
@@ -198,13 +215,69 @@ public final class EspWorldRenderer {
         matrices.pop();
     }
 
+    private static void drawPulseRing(MatrixStack matrices, VertexConsumer lines, Box b, int rgb, float fade, double animSec, int seed) {
+        double cx = (b.minX + b.maxX) * 0.5;
+        double cz = (b.minZ + b.maxZ) * 0.5;
+        double radius = Math.max(0.32, Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.62);
+        double phase = animSec * 2.1 + (seed & 31) * 0.37;
+        double wave = 0.5 + 0.5 * Math.sin(phase);
+        double ry = b.minY + 0.06 + (b.maxY - b.minY - 0.12) * wave;
+
+        int hi = ColorUtil.lerpRgb(rgb, 0xFFFFFF, 0.28f);
+        float hr = ColorUtil.red(hi), hg = ColorUtil.green(hi), hb = ColorUtil.blue(hi);
+        float br = ColorUtil.red(rgb), bg = ColorUtil.green(rgb), bb = ColorUtil.blue(rgb);
+
+        int segs = 20;
+        for (int i = 0; i < segs; i++) {
+            double a0 = (Math.PI * 2.0 * i) / segs + animSec * 0.8;
+            double a1 = (Math.PI * 2.0 * (i + 1)) / segs + animSec * 0.8;
+            double x0 = cx + Math.cos(a0) * radius, z0 = cz + Math.sin(a0) * radius;
+            double x1 = cx + Math.cos(a1) * radius, z1 = cz + Math.sin(a1) * radius;
+            drawLine(matrices, lines, x0, ry, z0, x1, ry, z1, hr, hg, hb, 0.94f * fade);
+            if ((i & 1) == 0) {
+                drawLine(matrices, lines, x0, b.minY + 0.03, z0, x1, b.minY + 0.03, z1, br, bg, bb, 0.42f * fade);
+            }
+        }
+    }
+
+    private static void drawSpiral(MatrixStack matrices, VertexConsumer lines, Box b, int rgb, float fade, double animSec, int seed) {
+        double cx = (b.minX + b.maxX) * 0.5;
+        double cz = (b.minZ + b.maxZ) * 0.5;
+        double radius = Math.max(0.30, Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.58);
+        double height = Math.max(0.25, b.maxY - b.minY);
+        double rot = animSec * 2.8 + (seed & 15) * 0.4;
+        int steps = 18;
+
+        int hi = ColorUtil.lerpRgb(rgb, 0xFFFFFF, 0.22f);
+        for (int strand = 0; strand < 2; strand++) {
+            double offset = strand * Math.PI;
+            int col = (strand == 0) ? hi : rgb;
+            float cr = ColorUtil.red(col), cg = ColorUtil.green(col), cb = ColorUtil.blue(col);
+            float ca = ((strand == 0) ? 0.92f : 0.68f) * fade;
+            for (int i = 0; i < steps; i++) {
+                double t0 = (double) i / steps;
+                double t1 = (double) (i + 1) / steps;
+                double a0 = rot + offset + t0 * Math.PI * 2.4;
+                double a1 = rot + offset + t1 * Math.PI * 2.4;
+                double r0 = radius * (0.88 + 0.12 * Math.sin(t0 * Math.PI));
+                double r1 = radius * (0.88 + 0.12 * Math.sin(t1 * Math.PI));
+                drawLine(
+                    matrices, lines,
+                    cx + Math.cos(a0) * r0, b.minY + height * t0, cz + Math.sin(a0) * r0,
+                    cx + Math.cos(a1) * r1, b.minY + height * t1, cz + Math.sin(a1) * r1,
+                    cr, cg, cb, ca
+                );
+            }
+        }
+    }
+
     private static void drawCornerLines(MatrixStack matrices, VertexConsumer lines, Box b, float r, float g, float bl, float a) {
         double lx = Math.max(0.08, (b.maxX - b.minX) * 0.28);
         double ly = Math.max(0.08, (b.maxY - b.minY) * 0.24);
         double lz = Math.max(0.08, (b.maxZ - b.minZ) * 0.28);
 
         double[] xs = {b.minX, b.maxX};
-        double[] ys = {b.minY, b.maxY};
+        double[] ys = {b.minY + 0.02, b.maxY};
         double[] zs = {b.minZ, b.maxZ};
 
         for (int xi = 0; xi < 2; xi++) {

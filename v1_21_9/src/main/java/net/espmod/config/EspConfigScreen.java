@@ -27,6 +27,14 @@ public final class EspConfigScreen {
             .setDefaultValue(defaults.showStatusHud).setSaveConsumer(v -> cfg.showStatusHud = v).build());
         general.addEntry(eb.startEnumSelector(Text.translatable("config.espmod.status_hud_corner"), HudCorner.class, cfg.statusHudCorner)
             .setDefaultValue(defaults.statusHudCorner).setSaveConsumer(v -> cfg.statusHudCorner = v).build());
+        general.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.show_target_hud"), cfg.showTargetHud)
+            .setDefaultValue(defaults.showTargetHud).setSaveConsumer(v -> cfg.showTargetHud = v).build());
+        general.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.show_radar"), cfg.showRadar)
+            .setDefaultValue(defaults.showRadar).setSaveConsumer(v -> cfg.showRadar = v).build());
+        general.addEntry(eb.startIntSlider(Text.translatable("config.espmod.radar_size"), cfg.radarSize, 48, 120)
+            .setDefaultValue(defaults.radarSize).setSaveConsumer(v -> cfg.radarSize = v).build());
+        general.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.show_pointers"), cfg.showDirectionPointers)
+            .setDefaultValue(defaults.showDirectionPointers).setSaveConsumer(v -> cfg.showDirectionPointers = v).build());
         general.addEntry(eb.startDoubleField(Text.translatable("config.espmod.max_distance"), cfg.maxDistance)
             .setDefaultValue(defaults.maxDistance).setMin(8.0).setMax(256.0).setSaveConsumer(v -> cfg.maxDistance = v).build());
         general.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.distance_fade"), cfg.distanceFade)
@@ -37,6 +45,8 @@ public final class EspConfigScreen {
             .setDefaultValue(defaults.renderBoxes).setSaveConsumer(v -> cfg.renderBoxes = v).build());
         visuals.addEntry(eb.startEnumSelector(Text.translatable("config.espmod.box_style"), BoxStyle.class, cfg.boxStyle)
             .setDefaultValue(defaults.boxStyle).setSaveConsumer(v -> cfg.boxStyle = v).build());
+        visuals.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.hit_flash"), cfg.hitFlashHighlight)
+            .setDefaultValue(defaults.hitFlashHighlight).setSaveConsumer(v -> cfg.hitFlashHighlight = v).build());
         visuals.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.render_2d"), cfg.render2DOverlay)
             .setDefaultValue(defaults.render2DOverlay).setSaveConsumer(v -> cfg.render2DOverlay = v).build());
         visuals.addEntry(eb.startBooleanToggle(Text.translatable("config.espmod.corner_2d"), cfg.corner2DBox)

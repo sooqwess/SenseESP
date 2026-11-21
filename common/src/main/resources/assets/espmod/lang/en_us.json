@@ -4,7 +4,7 @@
   "key.category.espmod.keys": "SenseESP",
   "key.espmod.toggle": "Toggle SenseESP",
   "key.espmod.config": "Open SenseESP Config",
-  "key.espmod.hud": "Toggle Status HUD",
+  "key.espmod.hud": "Toggle Status & Radar HUD",
 
   "msg.espmod.enabled": "SenseESP: Enabled",
   "msg.espmod.disabled": "SenseESP: Disabled",
@@ -15,6 +15,7 @@
   "hud.espmod.mode.full": "FULL",
   "hud.espmod.mode.los": "LOS",
   "hud.espmod.targets": "%s targets",
+  "hud.espmod.locked": "LOCKED",
 
   "config.espmod.title": "SenseESP Settings",
   "config.espmod.category.general": "General & HUD",
@@ -25,12 +26,17 @@
 
   "config.espmod.enabled": "Enable SenseESP",
   "config.espmod.show_status_hud": "Show Status HUD Pill",
-  "config.espmod.status_hud_corner": "Status HUD Position",
+  "config.espmod.status_hud_corner": "HUD & Radar Corner",
+  "config.espmod.show_target_hud": "Crosshair Target Inspector Card",
+  "config.espmod.show_radar": "Tactical Mini-Radar",
+  "config.espmod.radar_size": "Mini-Radar Size (px)",
+  "config.espmod.show_pointers": "Off-Screen Threat Pointers",
   "config.espmod.max_distance": "Max Render Distance",
   "config.espmod.distance_fade": "Fade Far Targets",
 
-  "config.espmod.render_boxes": "3D Bounding Boxes",
-  "config.espmod.box_style": "3D Box Style",
+  "config.espmod.render_boxes": "3D World Highlights",
+  "config.espmod.box_style": "3D Highlight Style",
+  "config.espmod.hit_flash": "Crimson Hit-Flash Effect",
   "config.espmod.render_2d": "2D Screen Brackets",
   "config.espmod.corner_2d": "Corner-Only 2D Brackets",
   "config.espmod.render_outlines": "Entity Glow Outlines (SP / OP)",
