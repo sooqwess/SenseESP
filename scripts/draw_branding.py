@@ -19,7 +19,6 @@ import math
 ROOT = Path(__file__).resolve().parents[1]
 OUT_512 = ROOT / "assets" / "icon.png"
 OUT_BANNER = ROOT / "assets" / "banner.png"
-OUT_SHOWCASE = ROOT / "assets" / "hud_showcase.png"
 OUT_128 = ROOT / "common" / "src" / "main" / "resources" / "assets" / "espmod" / "icon.png"
 
 
@@ -279,8 +278,7 @@ def generate() -> None:
     im.save(OUT_128)
     im.resize((512, 512), Image.Resampling.NEAREST).save(OUT_512)
     generate_banner(im)
-    generate_hud_showcase()
-    print(f"Generated {OUT_128}, {OUT_512}, {OUT_BANNER}, and {OUT_SHOWCASE}")
+    print(f"Generated {OUT_128}, {OUT_512}, and {OUT_BANNER}")
 
 
 PIXEL_FONT = {
@@ -445,119 +443,6 @@ def generate_banner(icon_128: Image.Image) -> None:
 
     banner.resize((1920, 640), Image.Resampling.NEAREST).save(OUT_BANNER)
 
-
-def generate_hud_showcase() -> None:
-    """Procedural 420x236 pixel-art HUD preview upscaled 3x NEAREST to 1260x708."""
-    W, H = 420, 236
-    im = Image.new("RGBA", (W, H))
-    px = im.load()
-    # Stylized dark cavern / deepslate horizon backdrop
-    for y in range(H):
-        for x in range(W):
-            horizon = 126
-            if y < horizon:
-                t = y / horizon
-                px[x, y] = (int(8 + 10 * t), int(14 + 18 * t), int(22 + 24 * t), 255)
-            else:
-                t = (y - horizon) / (H - horizon)
-                checker = 2 if (((x // 12) + (y // 8)) % 2 == 0) else 0
-                px[x, y] = (int(12 + 8 * t) + checker, int(18 + 10 * t) + checker, int(24 + 12 * t) + checker, 255)
-
-    d = ImageDraw.Draw(im)
-    # Perspective grid lines on floor
-    for gx in range(-160, 580, 40):
-        d.line([(210 + (gx - 210) // 4, 126), (gx, H - 1)], fill="#162632")
-    for gy in [136, 150, 168, 192, 220]:
-        d.line([(0, gy), (W - 1, gy)], fill="#15232e")
-
-    # 1. Status HUD Pill (top-left)
-    d.rectangle([8, 8, 150, 23], fill="#080e16", outline="#1e3538")
-    d.rectangle([8, 8, 10, 23], fill="#34d399")
-    draw_pixel_text(im, "SENSEESP", (14, 12), 1, (241, 245, 249), (203, 213, 225))
-    d.rectangle([68, 10, 100, 21], fill="#113328", outline="#34d399")
-    draw_pixel_text(im, "FULL", (73, 12), 1, (110, 242, 178), (52, 211, 153), outline_col="#113328")
-    draw_pixel_text(im, "4 TGT", (107, 12), 1, (148, 163, 184), (148, 163, 184))
-
-    # 2. Tactical Mini-Radar below Status Pill
-    rx, ry, rs = 8, 27, 64
-    d.rectangle([rx, ry, rx + rs, ry + rs], fill="#070d14", outline="#1e3a34")
-    d.line([(rx + 1, ry + 1), (rx + rs - 1, ry + 1)], fill="#246b56")
-    rcx, rcy = rx + rs // 2, ry + rs // 2
-    d.line([(rx + 3, rcy), (rx + rs - 3, rcy)], fill="#1c2c3b")
-    d.line([(rcx, ry + 3), (rcx, ry + rs - 3)], fill="#1c2c3b")
-    d.rectangle([rcx - 14, rcy - 14, rcx + 14, rcy + 14], outline="#14382e")
-    for i in range(3, 27, 2):
-        sp = (i * 5) // 8
-        d.point((rcx - sp, rcy - i), fill="#266885")
-        d.point((rcx + sp, rcy - i), fill="#266885")
-    # Blips
-    d.rectangle([rcx - 2, rcy - 18, rcx + 2, rcy - 14], fill="#ffffff")
-    d.rectangle([rcx - 1, rcy - 17, rcx + 1, rcy - 15], fill="#ff4d5a")
-    d.rectangle([rcx + 15, rcy - 8, rcx + 17, rcy - 6], fill="#38d6fc")
-    d.rectangle([rcx - 18, rcy + 11, rcx - 16, rcy + 13], fill="#c084fc")
-    d.rectangle([rcx - 1, rcy - 1, rcx + 1, rcy + 1], fill="#34d399")
-
-    # 3. Center Locked Target: 3D Pulse Ring + 2D Corner Brackets + Vertical HP Bar + Nametag Card
-    tx1, ty1, tx2, ty2 = 186, 66, 234, 152
-    # Silhouette mob figure inside
-    d.rectangle([202, 74, 218, 90], fill="#1b2e28", outline="#28453c")
-    d.rectangle([200, 91, 220, 124], fill="#182924", outline="#254038")
-    d.rectangle([202, 125, 208, 148], fill="#14221e")
-    d.rectangle([212, 125, 218, 148], fill="#14221e")
-    # Animated Pulse Ring ellipse around target
-    d.ellipse([178, 104, 242, 122], outline="#ff858e", width=2)
-    d.ellipse([178, 142, 242, 156], outline="#8f2934", width=1)
-    # 2D Locked Corner Brackets
-    for cx0, cy0, sx, sy in [(tx1, ty1, 1, 1), (tx2, ty1, -1, 1), (tx1, ty2, 1, -1), (tx2, ty2, -1, -1)]:
-        d.line([(cx0, cy0), (cx0 + 11 * sx, cy0)], fill="#ff9ea6", width=2)
-        d.line([(cx0, cy0), (cx0, cy0 + 11 * sy)], fill="#ff9ea6", width=2)
-    # Smooth Vertical HP bar on left
-    d.rectangle([tx1 - 6, ty1, tx1 - 3, ty2], fill="#060a12")
-    d.rectangle([tx1 - 5, ty1 + 18, tx1 - 4, ty2 - 1], fill="#4ade80")
-    # Nametag card above target
-    ncw = pixel_word_mask("VINDICATOR 12HP 8M", 1).width + 14
-    ncx, ncy = 210 - ncw // 2, 47
-    d.rectangle([ncx, ncy, ncx + ncw, ncy + 14], fill="#080e16", outline="#1e3246")
-    d.rectangle([ncx, ncy, ncx + 2, ncy + 14], fill="#ff4d5a")
-    draw_pixel_text(im, "VINDICATOR 12HP 8M", (ncx + 7, ncy + 4), 1, (248, 250, 252), (186, 230, 210))
-
-    # 4. Secondary Player target on right (smooth double-helix Spiral style)
-    px1, py1, px2, py2 = 304, 78, 340, 144
-    d.rectangle([315, 84, 329, 98], fill="#182636", outline="#28425c")
-    d.rectangle([313, 99, 331, 140], fill="#14202e", outline="#22384f")
-    spiral_a = [(int(322 + math.sin(i * 0.42) * 18), 140 - i * 3) for i in range(19)]
-    spiral_b = [(int(322 - math.sin(i * 0.42) * 18), 140 - i * 3) for i in range(19)]
-    d.line(spiral_b, fill="#1d6d86", width=1)
-    d.line(spiral_a, fill="#38d6fc", width=2)
-    acw = pixel_word_mask("ALEX 19M", 1).width + 14
-    acx = 322 - acw // 2
-    d.rectangle([acx, 61, acx + acw, 75], fill="#080e16", outline="#1e3246")
-    d.rectangle([acx, 61, acx + 2, 75], fill="#38d6fc")
-    draw_pixel_text(im, "ALEX 19M", (acx + 7, 65), 1, (241, 245, 249), (148, 212, 248))
-
-    # 5. Storage Chest Corner Box on left (SP/OP)
-    bx1, by1, bx2, by2 = 88, 118, 118, 146
-    d.rectangle([bx1 + 3, by1 + 3, bx2 - 3, by2 - 3], fill="#332411", outline="#f5b841")
-    for cx0, cy0, sx, sy in [(bx1, by1, 1, 1), (bx2, by1, -1, 1), (bx1, by2, 1, -1), (bx2, by2, -1, -1)]:
-        d.line([(cx0, cy0), (cx0 + 7 * sx, cy0)], fill="#ffd15c", width=2)
-        d.line([(cx0, cy0), (cx0, cy0 + 7 * sy)], fill="#ffd15c", width=2)
-
-    # 6. Crosshair + Target HUD Inspector Card below crosshair
-    d.line([(207, 118), (213, 118)], fill="#eafcf4")
-    d.line([(210, 115), (210, 121)], fill="#eafcf4")
-
-    cx_card, cy_card, cw, ch = 142, 168, 136, 34
-    d.rectangle([cx_card, cy_card, cx_card + cw, cy_card + ch], fill="#080e16", outline="#1e3246")
-    d.line([(cx_card + 1, cy_card + 1), (cx_card + cw - 1, cy_card + 1)], fill="#2b4865")
-    d.rectangle([cx_card, cy_card, cx_card + 2, cy_card + ch], fill="#ff4d5a")
-    draw_pixel_text(im, "VINDICATOR", (cx_card + 7, cy_card + 5), 1, (248, 250, 252), (226, 232, 240))
-    draw_pixel_text(im, "8.4M 4ARM", (cx_card + 78, cy_card + 5), 1, (148, 163, 184), (148, 163, 184))
-    d.rectangle([cx_card + 7, cy_card + 16, cx_card + cw - 7, cy_card + 21], fill="#04070d")
-    d.rectangle([cx_card + 7, cy_card + 16, cx_card + 102, cy_card + 21], fill="#34d399")
-    d.line([(cx_card + 7, cy_card + 16), (cx_card + 102, cy_card + 16)], fill="#a7f3d0")
-    draw_pixel_text(im, "19.0 / 24 HP", (cx_card + 7, cy_card + 24), 1, (203, 213, 225), (148, 163, 184))
-
-    im.resize((W * 3, H * 3), Image.Resampling.NEAREST).save(OUT_SHOWCASE)
 
 
 if __name__ == "__main__":
