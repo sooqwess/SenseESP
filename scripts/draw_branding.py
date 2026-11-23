@@ -2,24 +2,23 @@
 """
 Pixel-art branding generator for SenseESP.
 
-Matches the exact visual language and structural geometry of Forged Relics'
-approved original branding:
+Visual language:
 - Banner (`assets/banner.png`): 1600x400 RGB
   - Deep abyssal-emerald atmospheric canvas (`#060d0b`) with soft radial aura around
     the right-side sprite and sparse crisp star/mote field (1px, 2px, and 4-point glints).
   - Pure `#ffffff` stepped 5px frame (`[22..1577, 22..377]`) with 26x26 corner blocks,
     outer paired `14x4` telemetry ticks, and 2px inner emerald hairline rails (`y=38..39`,
     `y=360..361`, `x=48..1551`).
-  - Flat, crisp 5x7 pixel wordmark (`SENSE` in emerald `#5eead4`/`#34d399` or warm gold +
-    `ESP` in gold `#d9b36a`) at `14x` pixel scale (`98px` tall), zero fake gradients,
-    zero subtitle/pill clutter.
-  - Right-side large unframed All-Seeing Emerald Eye + gold ESP target brackets sprite
-    (`10x` crisp NEAREST pixel scale = `300x240`) with soft multi-pass silhouette rim/glow
-    and subtle warm gold dust motes.
-- Icon (`assets/icon.png` 512x512 & mod icon 128x128):
-  - Matching dark-abyssal canvas, pure `#ffffff` stepped frame, 4 gold corner crosses,
-    outer white telemetry ticks, thin inner emerald hairline, and centered glowing
-    Emerald Eye + gold ESP brackets sprite.
+  - Flat, crisp 5x7 pixel wordmark (`SENSE` in warm gold `#d9b36a` + `ESP` in mint
+    `#86e8be`) at `14x` pixel scale (`98px` tall), zero fake gradients, zero clutter.
+  - Right-side hero sprite: authentic vanilla Eye of Ender (JAPPA palette) with a crisp
+    1-texel Spectral Arrow outline (`#ffffff` specular / `#ffff77` spectral yellow /
+    `#dab930` gold / `#cf8c27` amber), rendered at `15x` NEAREST (`240x240`) with a
+    soft spectral-gold aura on the dark banner canvas.
+- Icon (`assets/icon.png` 512x512 & mod icon 128x128): pure vanilla item sprite on a
+  100% transparent background — zero frames, zero stars, zero blur. The native `16x16`
+  grid is scaled with exact integer `NEAREST` (`32x` -> 512, `8x` -> 128) so pixels stay
+  razor-sharp with zero semi-transparent halo on light/dark Modrinth & ModMenu UIs.
 """
 
 from pathlib import Path
@@ -53,103 +52,63 @@ PIXEL_FONT = {
 }
 
 
-def build_eye_sprite_22x16() -> Image.Image:
-    """Hand-crafted 22x16 pixel-art All-Seeing Emerald Eye with sleek 2px vertical slit pupil."""
+def build_spectral_eye_16x16() -> Image.Image:
+    """Authentic vanilla Eye of Ender (JAPPA palette) + 1-texel Spectral Arrow outline.
+
+    The eye body is pixel-identical to vanilla `item/ender_eye.png` (16x16, bounds
+    x=2..14, y=2..14). The outline is a crisp 8-neighbor dilation in the exact
+    `item/spectral_arrow.png` palette: `#ffffff` top specular, `#ffff77` spectral
+    yellow main rim, `#dab930` gold bottom/right, `#cf8c27` amber deepest shadow.
+    Strictly `alpha=0` outside the silhouette — zero blur, zero halo.
+    """
     PAL = {
-        "o": (5, 11, 10, 255),      # Crisp near-black obsidian-jade outline
-        "k": (11, 38, 33, 255),     # Deepest teal corner shadow
-        "d": (17, 70, 58, 255),     # Outer dark sea-jade
-        "t": (27, 114, 88, 255),    # Rich jade mid-dark
-        "m": (44, 168, 116, 255),   # Vibrant emerald midtone
-        "g": (86, 224, 148, 255),   # Bright emerald-mint glow
-        "l": (174, 248, 196, 255),  # Luminous mint iris core
-        "s": (212, 253, 232, 255),  # Soft mint secondary highlight
-        "w": (248, 255, 252, 255),  # Crisp specular glint
-        "p": (4, 9, 9, 255),        # Abyssal vertical slit pupil
-        "q": (14, 46, 38, 255),     # Subtle pupil taper tip
+        # Spectral Arrow outline
+        "W": (255, 255, 255, 255),  # ffffff specular
+        "Y": (255, 255, 119, 255),  # ffff77 spectral yellow
+        "G": (218, 185, 48, 255),   # dab930 spectral gold
+        "A": (207, 140, 39, 255),   # cf8c27 amber shadow
+        # Vanilla Eye of Ender (JAPPA)
+        "t": (49, 99, 100, 255),    # 316364 teal edge
+        "d": (30, 72, 53, 255),     # 1e4835 dark jade
+        "m": (78, 131, 134, 255),   # 4e8386 mid teal
+        "s": (101, 155, 125, 255),  # 659b7d seafoam sclera
+        "c": (203, 252, 221, 255),  # cbfcdd mint specular
+        "l": (181, 228, 90, 255),   # b5e45a iris lime
+        "i": (136, 195, 90, 255),   # 88c35a iris green
+        "j": (151, 209, 107, 255),  # 97d16b iris green
+        "e": (113, 172, 73, 255),   # 71ac49 iris emerald
+        "n": (87, 145, 67, 255),    # 579143 iris shadow
+        "k": (16, 44, 49, 255),     # 102c31 deep shadow rim
+        "p": (27, 43, 16, 255),     # 1b2b10 vertical slit pupil
     }
 
     GRID = [
-        ".......oooooooo.......",  # 00
-        ".....ookddttddkoo.....",  # 01
-        "...ookdtwwsggmtdkoo...",  # 02
-        "..okdtwwssgllgmtdtko..",  # 03
-        ".okdtwwssglqqlgmtdtko.",  # 04
-        ".odtwssggllppllgmtdko.",  # 05
-        "ookdtsggllqppqllgmtkoo",  # 06
-        "okdtmgllllpppplllgmdko",  # 07
-        "okdtmgllllpppplllgmdko",  # 08
-        "ookdtmggllqppqllgmtkoo",  # 09
-        ".odtmggglllppllgmtdko.",  # 10
-        ".okdtmgggglqqlgmtdtko.",  # 11
-        "..okdtmggggllgmtdtko..",  # 12
-        "...ookdttmmmmttdkoo...",  # 13
-        ".....ookddttddkoo.....",  # 14
-        ".......oooooooo.......",  # 15
+        "................",  # 00
+        "......WWWWW.....",  # 01
+        "....WWYtddYYY...",  # 02
+        "...YYttmmmddYY..",  # 03
+        "..YYtmssssstdYG.",  # 04
+        "..YdmscliesstdG.",  # 05
+        ".YYdscljdnesskGG",  # 06
+        ".YdtsljdpdnestkG",  # 07
+        ".YdteeidpdnestkG",  # 08
+        ".YdtsendpdieetkG",  # 09
+        ".YYdmseidjemskGG",  # 10
+        "..YdtmsenemetkG.",  # 11
+        "..YYktmmmmstkYG.",  # 12
+        "...GGkktttkkGG..",  # 13
+        "....GGGkkkAAA...",  # 14
+        "......AAAAA.....",  # 15
     ]
 
-    im = Image.new("RGBA", (22, 16), (0, 0, 0, 0))
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     px = im.load()
     for y, row in enumerate(GRID):
+        assert len(row) == 16, f"row {y} has {len(row)} chars"
         for x, ch in enumerate(row):
             if ch != ".":
                 px[x, y] = PAL[ch]
     return im
-
-
-def build_esp_brackets_30x24() -> Image.Image:
-    """Crisp beveled gold ESP target corner brackets on a 30x24 native pixel grid."""
-    W, H = 30, 24
-    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-
-    OUT = (5, 10, 10, 255)
-    GOLD_SH = (158, 108, 38, 255)
-    GOLD_MD = (217, 179, 106, 255)  # Matches Forged Relics #d9b36a warm gold!
-    GOLD_HI = (244, 216, 148, 255)
-    GOLD_SP = (255, 244, 204, 255)
-
-    tl = Image.new("RGBA", (7, 7), (0, 0, 0, 0))
-    tp = tl.load()
-    for y in range(1, 6):
-        for x in range(1, 6):
-            if y <= 2 or x <= 2:
-                tp[x, y] = GOLD_MD
-    for i in range(1, 6):
-        tp[i, 1] = GOLD_HI
-        tp[1, i] = GOLD_HI
-    tp[1, 1] = GOLD_SP
-    tp[2, 1] = GOLD_SP
-    tp[1, 2] = GOLD_SP
-    for i in range(2, 6):
-        tp[i, 2] = GOLD_SH
-        tp[2, i] = GOLD_SH
-    tp[2, 2] = GOLD_MD
-
-    outlined = tl.copy()
-    op = outlined.load()
-    for y in range(7):
-        for x in range(7):
-            if tp[x, y][3] == 0:
-                for ox in (-1, 0, 1):
-                    for oy in (-1, 0, 1):
-                        nx, ny = x + ox, y + oy
-                        if 0 <= nx < 7 and 0 <= ny < 7 and tp[nx, ny][3] > 0:
-                            op[x, y] = OUT
-                            break
-
-    im.alpha_composite(outlined, (0, 0))
-    im.alpha_composite(outlined.transpose(Image.Transpose.FLIP_LEFT_RIGHT), (W - 7, 0))
-    im.alpha_composite(outlined.transpose(Image.Transpose.FLIP_TOP_BOTTOM), (0, H - 7))
-    im.alpha_composite(outlined.transpose(Image.Transpose.ROTATE_180), (W - 7, H - 7))
-    return im
-
-
-def build_combined_sprite_native() -> Image.Image:
-    """Combines the 22x16 Emerald Eye centered inside the 30x24 Gold ESP Brackets."""
-    canvas = Image.new("RGBA", (30, 24), (0, 0, 0, 0))
-    canvas.alpha_composite(build_esp_brackets_30x24(), (0, 0))
-    canvas.alpha_composite(build_eye_sprite_22x16(), (4, 4))
-    return canvas
 
 
 def composite_sprite_with_aura(
@@ -159,8 +118,9 @@ def composite_sprite_with_aura(
     xy: tuple[int, int],
 ) -> None:
     """
-    Renders the crisp NEAREST-scaled sprite with the exact Forged Relics style
-    tight silhouette rim + soft atmospheric outer halo (never blurring the sprite itself).
+    Renders the crisp NEAREST-scaled sprite with a soft spectral-gold aura
+    (banner only — never used for the transparent icon). The sprite itself
+    is never blurred; only the halo behind it is soft.
     """
     pad = 4
     padded = Image.new(
@@ -177,17 +137,17 @@ def composite_sprite_with_aura(
     px = xy[0] - pad * scale
     py = xy[1] - pad * scale
 
-    # Soft outer emerald-jade bloom (like Forged Relics' #604b7e / #362959 sword halo)
-    halo_wide = Image.new("RGBA", scaled.size, (38, 128, 96, 255))
+    # Soft outer spectral-gold bloom
+    halo_wide = Image.new("RGBA", scaled.size, (218, 185, 48, 255))
     halo_wide_a = mask.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(scale * 1.35))
-    halo_wide.putalpha(halo_wide_a.point(lambda a: min(255, int(a * 0.55))))
+    halo_wide.putalpha(halo_wide_a.point(lambda a: min(255, int(a * 0.50))))
     target.alpha_composite(halo_wide, (px, py))
 
-    # Tight silhouette rim (3px around crisp pixel edges)
+    # Tight silhouette rim in spectral yellow
     rim_px = max(3, (scale // 3) | 1)
-    rim = Image.new("RGBA", scaled.size, (94, 214, 166, 255))
+    rim = Image.new("RGBA", scaled.size, (255, 255, 119, 255))
     rim_a = mask.filter(ImageFilter.MaxFilter(rim_px * 2 + 1)).filter(ImageFilter.GaussianBlur(1.4))
-    rim.putalpha(rim_a.point(lambda a: min(255, int(a * 0.72))))
+    rim.putalpha(rim_a.point(lambda a: min(255, int(a * 0.65))))
     target.alpha_composite(rim, (px, py))
 
     # Crisp unblurred pixel sprite on top
@@ -234,7 +194,7 @@ def draw_starfield(
             draw.rectangle([x, y, x + 1, y + 1], fill=col)
         placed += 1
 
-    # Crisp 4-point cross sparkles (exact Forged Relics cross geometry)
+    # Crisp 4-point cross sparkles
     for cx, cy, arm in sparkle_coords:
         if in_excluded(cx, cy):
             continue
@@ -254,7 +214,7 @@ def draw_flat_word(
     block: int,
     color: tuple[int, int, int],
 ) -> int:
-    """Draws crisp flat 5x7 pixel typography (zero outline, zero gradient) like Forged Relics."""
+    """Draws crisp flat 5x7 pixel typography (zero outline, zero gradient)."""
     cx = x0
     for idx, ch in enumerate(text.upper()):
         rows = PIXEL_FONT[ch]
@@ -273,10 +233,8 @@ def generate_banner() -> None:
     im = Image.new("RGBA", (W, H), (7, 13, 12, 255))
     px = im.load()
 
-    # Subtle deep night-emerald atmospheric glow centered behind right-side sprite (x=1296, y=200)
-    # Left side is rich obsidian-pine (#070d0c) warming smoothly toward deep sea-jade (#10261f) around the sprite,
-    # matching Forged Relics' #090817 -> #221941 atmospheric depth.
-    sx_center, sy_center = 1296.0, 200.0
+    # Subtle deep night-emerald atmospheric glow centered behind right-side sprite (x=1286, y=200)
+    sx_center, sy_center = 1286.0, 200.0
     for y in range(H):
         dy = (y - sy_center) / 205.0
         dy2 = dy * dy
@@ -294,7 +252,6 @@ def generate_banner() -> None:
     d = ImageDraw.Draw(im)
 
     # Wordmark geometry: 14px block -> height = 7 * 14 = 98px (y=151..248)
-    # "SENSE" = 29 blocks = 406px; gap = 84px; "ESP" = 17 blocks = 238px -> total = 728px (x=176..904)
     BLOCK = 14
     word_y = (H - 7 * BLOCK) // 2  # 151
     sense_x = 176
@@ -302,15 +259,15 @@ def generate_banner() -> None:
     esp_x = sense_x + sense_w + 84  # 666
     esp_w = 17 * BLOCK  # 238
 
-    # Sprite geometry: 30x24 at 10x = 300x240, placed at x=1136..1436, y=80..320
-    SPRITE_SCALE = 10
-    sprite_x = 1136
-    sprite_y = (H - 24 * SPRITE_SCALE) // 2  # 80
+    # Sprite geometry: 16x16 at 15x = 240x240, centered at (1286, 200) -> x=1166..1406, y=80..320
+    SPRITE_SCALE = 15
+    sprite_x = 1286 - (16 * SPRITE_SCALE) // 2  # 1166
+    sprite_y = (H - 16 * SPRITE_SCALE) // 2  # 80
 
     # Sparse crisp stars + 4-point glints (avoiding wordmark, frame rails, and sprite core)
     exclude = [
         (sense_x - 24, word_y - 22, esp_x + esp_w + 28, word_y + 7 * BLOCK + 22),
-        (sprite_x - 18, sprite_y - 18, sprite_x + 300 + 18, sprite_y + 240 + 18),
+        (sprite_x - 18, sprite_y - 18, sprite_x + 240 + 18, sprite_y + 240 + 18),
         (18, 18, 54, 54), (W - 55, 18, W - 19, 54),
         (18, H - 55, 54, H - 19), (W - 55, H - 55, W - 19, H - 19),
     ]
@@ -327,9 +284,9 @@ def generate_banner() -> None:
     ]
     draw_starfield(d, W, H, seed=1507, exclude_boxes=exclude, star_count=88, sparkle_coords=sparkles)
 
-    # Subtle warm amber-gold dust motes drifting near top-left of the ESP brackets (like Forged Relics' guard motes)
+    # Subtle warm spectral-gold dust motes near the hero sprite
     mote_rng = random.Random(421)
-    mote_cols = [(217, 179, 106), (235, 198, 128), (184, 138, 74), (146, 218, 182)]
+    mote_cols = [(255, 255, 119), (218, 185, 48), (235, 198, 128), (184, 138, 74)]
     for _ in range(18):
         mx = mote_rng.randint(sprite_x - 28, sprite_x + 76)
         my = mote_rng.randint(sprite_y - 16, sprite_y + 62)
@@ -339,9 +296,8 @@ def generate_banner() -> None:
         else:
             d.point((mx, my), fill=mc)
 
-    # Exact Forged Relics border geometry on 1600x400:
     WHITE = (255, 255, 255, 255)
-    RAIL = (52, 168, 126, 255)  # Subtle, refined emerald hairline matching #6f52b8 saturation/value
+    RAIL = (52, 168, 126, 255)
 
     # 1. Outer 5px white frame [22..1577, 22..377]
     d.rectangle([22, 22, 1577, 26], fill=WHITE)
@@ -367,14 +323,13 @@ def generate_banner() -> None:
     d.rectangle([48, 38, 1551, 39], fill=RAIL)
     d.rectangle([48, 360, 1551, 361], fill=RAIL)
 
-    # 5. Right-side unframed Emerald Eye + Gold ESP Brackets hero sprite with soft aura
-    sprite = build_combined_sprite_native()
+    # 5. Right-side Spectral Eye hero sprite with soft spectral aura
+    sprite = build_spectral_eye_16x16()
     composite_sprite_with_aura(im, sprite, scale=SPRITE_SCALE, xy=(sprite_x, sprite_y))
 
     # 6. Flat two-tone pixel wordmark: warm gold "SENSE" + cool mint-emerald "ESP"
-    #    (paralleling Forged Relics' warm gold #d9b36a "FORGED" + cool lavender #c2aef5 "RELICS")
     GOLD_WORD = (217, 179, 106)   # #d9b36a
-    MINT_WORD = (134, 232, 190)   # #86e8be (balanced pastel-emerald counterpart to #c2aef5)
+    MINT_WORD = (134, 232, 190)   # #86e8be
     draw_flat_word(d, "SENSE", sense_x, word_y, BLOCK, GOLD_WORD)
     draw_flat_word(d, "ESP", esp_x, word_y, BLOCK, MINT_WORD)
 
@@ -383,83 +338,15 @@ def generate_banner() -> None:
 
 
 def generate_icon() -> None:
-    """Generates matching 512x512 Modrinth icon and 128x128 Fabric mod icon."""
-    S = 512
-    im = Image.new("RGBA", (S, S), (7, 11, 13, 255))
-    px = im.load()
-
-    for y in range(S):
-        dy = (y - 256.0) / 220.0
-        for x in range(S):
-            dx = (x - 256.0) / 220.0
-            glow = max(0.0, 1.0 - math.hypot(dx, dy))
-            g2 = glow * glow
-            px[x, y] = (
-                int(7 + 10 * g2),
-                int(10 + 26 * g2),
-                int(13 + 21 * g2),
-                255,
-            )
-
-    d = ImageDraw.Draw(im)
-
-    # Sparse stars inside 512x512 icon
-    exclude = [
-        (96, 116, 416, 396),
-        (0, 0, 56, 56), (S - 57, 0, S - 1, 56),
-        (0, S - 57, 56, S - 1), (S - 57, S - 57, S - 1, S - 1),
-    ]
-    sparkles = [(116, 108, 5), (398, 118, 4), (108, 396, 4), (404, 404, 5)]
-    draw_starfield(d, S, S, seed=909, exclude_boxes=exclude, star_count=34, sparkle_coords=sparkles)
-
-    WHITE = (255, 255, 255, 255)
-    GOLD = (217, 179, 106, 255)
-    RAIL = (52, 168, 126, 255)
-
-    # Stepped white frame [36..475] (9px thick) + 28x28 corner blocks (matching Forged Relics icon)
-    d.rectangle([36, 36, 475, 44], fill=WHITE)
-    d.rectangle([36, 467, 475, 475], fill=WHITE)
-    d.rectangle([36, 36, 44, 475], fill=WHITE)
-    d.rectangle([467, 36, 475, 475], fill=WHITE)
-
-    d.rectangle([36, 36, 63, 63], fill=WHITE)
-    d.rectangle([448, 36, 475, 63], fill=WHITE)
-    d.rectangle([36, 448, 63, 475], fill=WHITE)
-    d.rectangle([448, 448, 475, 475], fill=WHITE)
-
-    # Inner 2px emerald hairline rails
-    d.rectangle([68, 52, 443, 53], fill=RAIL)
-    d.rectangle([68, 458, 443, 459], fill=RAIL)
-    d.rectangle([52, 68, 53, 443], fill=RAIL)
-    d.rectangle([458, 68, 459, 443], fill=RAIL)
-
-    # Outer white paired telemetry dashes
-    for a, b in [(64, 75), (82, 93), (418, 429), (436, 447)]:
-        d.rectangle([a, 24, b, 27], fill=WHITE)
-        d.rectangle([a, 484, b, 487], fill=WHITE)
-        d.rectangle([24, a, 27, b], fill=WHITE)
-        d.rectangle([484, a, 487, b], fill=WHITE)
-
-    # Four outer gold pixel crosses in corners (matching Forged Relics icon's 4 gold corner crosses)
-    for cx, cy in [(22, 22), (S - 23, 22), (22, S - 23), (S - 23, S - 23)]:
-        d.rectangle([cx - 8, cy - 2, cx + 8, cy + 2], fill=GOLD)
-        d.rectangle([cx - 2, cy - 8, cx + 2, cy + 8], fill=GOLD)
-        d.rectangle([cx - 5, cy - 5, cx + 5, cy + 5], fill=GOLD)
-
-    # Centered sprite (30x24 at 11x = 330x264)
-    sprite = build_combined_sprite_native()
-    sc = 11
-    composite_sprite_with_aura(
-        im,
-        sprite,
-        scale=sc,
-        xy=((S - 30 * sc) // 2, (S - 24 * sc) // 2),
-    )
+    """Generates pure transparent vanilla-item icons (512x512 & 128x128, RGBA, NEAREST)."""
+    sprite = build_spectral_eye_16x16()
+    icon_512 = sprite.resize((512, 512), Image.Resampling.NEAREST)
+    icon_128 = sprite.resize((128, 128), Image.Resampling.NEAREST)
 
     OUT_512.parent.mkdir(parents=True, exist_ok=True)
     OUT_128.parent.mkdir(parents=True, exist_ok=True)
-    im.convert("RGB").save(OUT_512)
-    im.resize((128, 128), Image.Resampling.LANCZOS).convert("RGB").save(OUT_128)
+    icon_512.save(OUT_512)
+    icon_128.save(OUT_128)
 
 
 if __name__ == "__main__":
